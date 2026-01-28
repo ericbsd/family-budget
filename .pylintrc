@@ -1,0 +1,16 @@
+# Pylint configuration for Family Budget Flask application
+
+[MASTER]
+# Add current directory to Python path so pylint can find local modules
+init-hook='import sys; sys.path.append(".")'
+
+# Ignore virtual environments and cache directories
+ignore=.venv,venv,.git,__pycache__,.pytest_cache
+
+[MESSAGES CONTROL]
+# Disable warnings for intentional Flask patterns
+disable=import-outside-toplevel
+
+[FORMAT]
+# Maximum line length
+max-line-length=120
