@@ -61,8 +61,8 @@ def _process_transactions(parse_result, filename, categorizer):
     uncategorized_count = 0
 
     for txn_data in parse_result['transactions']:
-        # Auto-categorize
-        categorization = categorizer.categorize(txn_data['description'])
+        # Auto-categorize (pass amount so positive transactions go to Entry)
+        categorization = categorizer.categorize(txn_data['description'], txn_data['amount'])
 
         # Create and save transaction
         transaction = Transaction.create(

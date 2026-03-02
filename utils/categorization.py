@@ -12,6 +12,21 @@ class AutoCategorizer:
     Auto-categorization system using pattern matching and learning.
     """
 
+    # Generic bank prefixes that precede the actual merchant name.
+    # These are stripped before extracting the merchant pattern.
+    GENERIC_PREFIXES = [
+        r'CONTACTLESS INTERAC PURCHASE\s*-?\s*',
+        r'INTERAC PURCHASE\s*-?\s*',
+        r'ONLINE BANKING TRANSFER\s*-?\s*',
+        r'E-TRANSFER\s+(?:SENT|RECEIVED)\s*',
+        r'INTERNET BANKING\s*-?\s*',
+        r'POS PURCHASE\s*-?\s*',
+        r'VISA PURCHASE\s*-?\s*',
+        r'DEBIT PURCHASE\s*-?\s*',
+        r'POINT OF SALE\s*-?\s*',
+        r'ATM\s+(?:WITHDRAWAL|DEPOSIT)\s*-?\s*',
+    ]
+
     def __init__(self, mongo):
         """
         Initialize auto-categorizer with MongoDB connection.
@@ -21,18 +36,21 @@ class AutoCategorizer:
         """
         self.mongo = mongo
 
-    def categorize(self, description):
+    ENTRY_CATEGORY_ID = 1  # Reserved system category for money coming in
+
+    def categorize(self, description, amount=None):
         """
-        Auto-categorize a transaction based on description.
+        Auto-categorize a transaction based on description and amount.
 
         Args:
             description: Transaction description
+            amount: Transaction amount (positive = income, negative = expense)
 
         Returns:
             dict: {
                 'category_id': Category ID (int),
                 'confidence': Confidence score (0.0-1.0),
-                'match_type': Type of match used (exact/contains/fuzzy/none)
+                'match_type': Type of match used (exact/contains/fuzzy/amount/none)
             }
         """
         description_clean = description.strip().upper()
@@ -51,6 +69,14 @@ class AutoCategorizer:
         result = self._fuzzy_match(description_clean)
         if result:
             return result
+
+        # Positive amount with no rule match → Entry
+        if amount is not None and amount > 0:
+            return {
+                'category_id': self.ENTRY_CATEGORY_ID,
+                'confidence': 1.0,
+                'match_type': 'amount'
+            }
 
         # No match found - return Uncategorized (ID 0)
         return {
@@ -241,10 +267,16 @@ class AutoCategorizer:
         description_clean = description.strip().upper()
         merchant_pattern = self._extract_merchant_pattern(description_clean)
 
+        # Only match transactions that START with the same words as the original.
+        # Using the first 3 words as an anchor prevents cross-type false positives
+        # (e.g. "CONTACTLESS INTERAC PURCHASE" will never match "E-TRANSFER SENT …").
+        first_words = ' '.join(description_clean.split()[:3])
+        batch_regex = '^' + re.escape(first_words) + '.*' + re.escape(merchant_pattern)
+
         # Find all uncategorized transactions (category_id=0) that match the pattern
         uncategorized = self.mongo.db.transactions.find({
             'category_id': 0,
-            'description': {'$regex': re.escape(merchant_pattern), '$options': 'i'}
+            'description': {'$regex': batch_regex, '$options': 'i'}
         })
 
         # Count and collect IDs
@@ -278,23 +310,45 @@ class AutoCategorizer:
         Returns:
             str: Extracted merchant pattern
         """
-        # Remove common patterns
-        # Remove #123, #456, etc. (store numbers)
-        pattern = re.sub(r'#\d+', '', description)
+        # Strip known generic bank prefixes (e.g. "CONTACTLESS INTERAC PURCHASE - ")
+        # so the first words are the actual merchant, not the bank transaction type.
+        pattern = description
+        for prefix in self.GENERIC_PREFIXES:
+            stripped = re.sub(f'^{prefix}', '', pattern, flags=re.IGNORECASE).strip()
+            if stripped != pattern:
+                pattern = stripped
+                break
+
+        # Remove leading transaction codes (e.g. "2024", "8276", "6736")
+        # — standalone 3-6 digit numbers that appear before the merchant name
+        pattern = re.sub(r'^\d{3,6}\s+', '', pattern)
+
+        # Remove store/terminal numbers (#123, #456; also trailing bare #)
+        pattern = re.sub(r'#\d*', '', pattern)
 
         # Remove dates in various formats
         pattern = re.sub(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', '', pattern)
 
-        # Remove standalone numbers at the end
+        # Remove trailing bank reference codes (mixed letters+digits, e.g. WWM4AK, RMEEU7, 82ZAEA)
+        pattern = re.sub(r'\s+(?:[A-Z]+\d[A-Z0-9]*|\d+[A-Z][A-Z0-9]*)\s*$', '', pattern)
+
+        # Remove standalone trailing numbers
         pattern = re.sub(r'\s+\d+\s*$', '', pattern)
 
-        # Remove extra whitespace
+        # Remove extra whitespace and punctuation left at boundaries
+        pattern = pattern.strip(' -/')
         pattern = ' '.join(pattern.split())
 
-        # Take first 3-4 significant words (usually the merchant name)
+        # Take first 4 significant words (the merchant name)
         words = pattern.split()
         if len(words) > 4:
             pattern = ' '.join(words[:4])
+
+        # If extraction left us with something meaningless (empty or pure digits),
+        # fall back to the first 3 words of the original description.
+        if not pattern or pattern.isdigit() or len(pattern) < 3:
+            fallback_words = description.split()
+            pattern = ' '.join(fallback_words[:3])
 
         return pattern.strip()
 

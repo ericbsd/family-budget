@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – Family Budget{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h4 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h4>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <select class="form-select form-select-sm" id="monthSelect" style="width:auto"></select>
+        <select class="form-select form-select-sm" id="yearSelect"  style="width:auto"></select>
+        <button class="btn btn-sm btn-primary" id="refreshBtn">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Total Spent</div>
+                <div class="summary-value amount-expense" id="totalSpent">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Total Income</div>
+                <div class="summary-value amount-income" id="totalIncome">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Transactions</div>
+                <div class="summary-value" id="txCount">—</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small mb-1">Uncategorized</div>
+                <div class="summary-value text-warning" id="uncatCount">—</div>
+                <a href="/transactions?category_id=0" class="small">Review →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category chart + Budget status -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-medium">Spending by Category</div>
+            <div class="card-body">
+                <div class="chart-container" id="categoryChartWrap">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header fw-medium">Budget Status</div>
+            <div class="card-body overflow-auto" id="budgetStatus" style="max-height:340px">
+                <div class="text-muted text-center py-4">Loading…</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trend chart -->
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header fw-medium">Spending Trend – Last 6 Months</div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top merchants -->
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header fw-medium">Top Merchants This Month</div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" id="merchantsTable">
+                    <thead>
+                        <tr>
+                            <th style="width:2rem">#</th>
+                            <th>Merchant</th>
+                            <th class="text-end">Transactions</th>
+                            <th class="text-end">Total Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="4" class="text-center text-muted py-4">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

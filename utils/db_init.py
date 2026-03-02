@@ -26,10 +26,37 @@ def init_db(mongo):
             'description': 'Transactions not yet categorized',
             'color': '#9E9E9E',  # Gray
             'monthly_limit': 0.0,
+            'is_system': True,
             'created_date': datetime.utcnow()
         },
         {
             'id': 1,
+            'name': 'Entry',
+            'description': 'Money coming in — salary, deposits, refunds. Excluded from budget charts.',
+            'color': '#616161',  # Dark gray
+            'monthly_limit': 0.0,
+            'is_system': True,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 2,
+            'name': 'Transaction',
+            'description': 'Bank transfers, credit card payments, loan payments.',
+            'color': '#546E7A',  # Blue-gray
+            'monthly_limit': 0.0,
+            'is_system': True,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 3,
+            'name': 'Fee',
+            'description': 'Bank fees, service charges, and account fees',
+            'color': '#FF7043',  # Deep orange
+            'monthly_limit': 0.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 4,
             'name': 'Groceries',
             'description': 'Food, household items, and grocery shopping',
             'color': '#4CAF50',  # Green
@@ -37,7 +64,7 @@ def init_db(mongo):
             'created_date': datetime.utcnow()
         },
         {
-            'id': 2,
+            'id': 5,
             'name': 'Gas',
             'description': 'Fuel and gas station purchases',
             'color': '#FF9800',  # Orange
@@ -45,7 +72,7 @@ def init_db(mongo):
             'created_date': datetime.utcnow()
         },
         {
-            'id': 3,
+            'id': 6,
             'name': 'Restaurants',
             'description': 'Dining out, takeout, and food delivery',
             'color': '#F44336',  # Red
@@ -53,7 +80,7 @@ def init_db(mongo):
             'created_date': datetime.utcnow()
         },
         {
-            'id': 4,
+            'id': 7,
             'name': 'Entertainment',
             'description': 'Movies, games, hobbies, and leisure activities',
             'color': '#9C27B0',  # Purple
@@ -61,7 +88,7 @@ def init_db(mongo):
             'created_date': datetime.utcnow()
         },
         {
-            'id': 5,
+            'id': 8,
             'name': 'Utilities',
             'description': 'Electric, water, internet, phone bills',
             'color': '#2196F3',  # Blue
@@ -69,13 +96,13 @@ def init_db(mongo):
             'created_date': datetime.utcnow()
         },
         {
-            'id': 6,
+            'id': 9,
             'name': 'Investment',
             'description': 'Savings, stocks, retirement, and investment accounts',
             'color': '#009688',  # Teal
             'monthly_limit': 1000.0,
             'created_date': datetime.utcnow()
-        }
+        },
     ]
 
     categories_created = 0
@@ -89,10 +116,19 @@ def init_db(mongo):
             db.categories.insert_one(category)
             categories_created += 1
         else:
+            # Backfill is_system flag on existing system categories
+            if category.get('is_system') and not existing.get('is_system'):
+                db.categories.update_one({'id': category['id']}, {'$set': {'is_system': True}})
             categories_existing += 1
 
     # Create unique index on category id field
     db.categories.create_index('id', unique=True)
+
+    # Migrate: tag existing positive uncategorized transactions as Entry
+    db.transactions.update_many(
+        {'amount': {'$gt': 0}, 'category_id': 0},
+        {'$set': {'category_id': 1, 'auto_categorized': True, 'confidence': 1.0}}
+    )
 
     # Create indexes for transactions collection
     # Index on date for efficient date range queries

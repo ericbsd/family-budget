@@ -47,20 +47,19 @@ def create_app(config_name=None):
     from api.categories import categories_bp
     from api.upload import upload_bp
     from api.charts import charts_bp
+    from web import web_bp
     flask_app.register_blueprint(transactions_bp, url_prefix='/api')
     flask_app.register_blueprint(categories_bp, url_prefix='/api')
     flask_app.register_blueprint(upload_bp, url_prefix='/api')
     flask_app.register_blueprint(charts_bp, url_prefix='/api')
+    flask_app.register_blueprint(web_bp)
 
-    # Simple health check route
+    # Root redirect to dashboard
     @flask_app.route('/')
     def index():
-        """Health check endpoint."""
-        return {
-            'status': 'running',
-            'message': 'Family Budget API',
-            'version': '1.0.0'
-        }
+        """Redirect to dashboard."""
+        from flask import redirect
+        return redirect('/dashboard')
 
     @flask_app.route('/health')
     def health():

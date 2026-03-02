@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 from calendar import monthrange
 
 
+EXCLUDED_CATEGORY_IDS = [1]  # Entry — excluded from all spending charts/budgets
+
+
 class Aggregations:
     """
     Aggregation helper class for chart data.
@@ -68,13 +71,14 @@ class Aggregations:
             list: Aggregated data with category, amount, count
         """
         pipeline = [
-            # Filter by date range
+            # Filter by date range, exclude system-only categories (e.g. Entry)
             {
                 '$match': {
                     'date': {
                         '$gte': start_date,
                         '$lte': end_date
-                    }
+                    },
+                    'category_id': {'$nin': EXCLUDED_CATEGORY_IDS}
                 }
             },
             # Group by category_id
@@ -156,7 +160,7 @@ class Aggregations:
         }
 
         budget_status = []
-        for category in mongo.db.categories.find():
+        for category in mongo.db.categories.find({'id': {'$nin': EXCLUDED_CATEGORY_IDS}}):
             monthly_limit = category.get('monthly_limit', 0)
             actual = abs(spending_dict.get(category['id'], 0))
             status, percentage = Aggregations._calculate_status_and_percentage(monthly_limit, actual)
@@ -190,18 +194,19 @@ class Aggregations:
         Returns:
             list: Monthly totals
         """
-        # Calculate start date
-        end_date = datetime(year, 12, 31, 23, 59, 59)
+        # Cap end date at today so future months in the selected year don't produce empty results
+        end_date = min(datetime(year, 12, 31, 23, 59, 59), datetime.now())
         start_date = end_date - timedelta(days=months * 30)
 
         pipeline = [
-            # Filter by date range
+            # Filter by date range, exclude system-only categories (e.g. Entry)
             {
                 '$match': {
                     'date': {
                         '$gte': start_date,
                         '$lte': end_date
-                    }
+                    },
+                    'category_id': {'$nin': EXCLUDED_CATEGORY_IDS}
                 }
             },
             # Extract year and month
@@ -261,13 +266,14 @@ class Aggregations:
             list: Top merchants by total spending
         """
         pipeline = [
-            # Filter by date range
+            # Filter by date range, exclude system-only categories (e.g. Entry)
             {
                 '$match': {
                     'date': {
                         '$gte': start_date,
                         '$lte': end_date
-                    }
+                    },
+                    'category_id': {'$nin': EXCLUDED_CATEGORY_IDS}
                 }
             },
             # Group by description

@@ -197,6 +197,12 @@ def delete_category(category_id):
         if not category:
             return error_response('NOT_FOUND', f'Category not found: {category_id}', 404)
 
+        # Protect system categories from deletion
+        if category.get('is_system'):
+            return error_response('SYSTEM_CATEGORY',
+                                  f'"{category["name"]}" is a system category and cannot be deleted.',
+                                  403)
+
         # Check if category is in use by any transactions
         transaction_count = mongo.db.transactions.count_documents({'category_id': category_id})
         if transaction_count > 0:

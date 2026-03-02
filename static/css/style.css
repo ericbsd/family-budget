@@ -1,0 +1,86 @@
+/* ── Amount colours ───────────────────────────────────────────── */
+.amount-expense { color: var(--bs-danger); }
+.amount-income  { color: var(--bs-success); }
+
+/* ── Category colour dot ──────────────────────────────────────── */
+.cat-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+/* ── Chart containers ─────────────────────────────────────────── */
+.chart-container {
+    position: relative;
+    min-height: 300px;
+}
+
+/* ── Drag & drop upload zone ──────────────────────────────────── */
+.drop-zone {
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+.drop-zone:hover,
+.drop-zone.dragover {
+    border-color: var(--bs-primary);
+    background-color: var(--bs-primary-bg-subtle);
+}
+.drop-zone input[type="file"] { display: none; }
+
+/* ── Category card colour stripe ─────────────────────────────── */
+.category-card .color-stripe {
+    height: 5px;
+    border-radius: 0.375rem 0.375rem 0 0;
+}
+
+/* ── Budget progress bar ──────────────────────────────────────── */
+.progress { height: 8px; }
+
+/* ── Auto-categorized confidence badge ────────────────────────── */
+.badge-auto {
+    font-size: 0.6em;
+    vertical-align: middle;
+    cursor: default;
+}
+
+/* ── Sticky table header ──────────────────────────────────────── */
+.table-sticky-head thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--bs-body-bg);
+}
+
+/* ── Scrollable table body ────────────────────────────────────── */
+.table-scroll {
+    max-height: 62vh;
+    overflow-y: auto;
+}
+
+/* ── Truncate long table cells ────────────────────────────────── */
+.cell-truncate {
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Navbar active link ───────────────────────────────────────── */
+.navbar-nav .nav-link.active {
+    font-weight: 600;
+}
+
+/* ── Summary card value ───────────────────────────────────────── */
+.summary-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+}

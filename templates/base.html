@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Family Budget{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Apply theme before render to prevent flash -->
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('theme');
+                var theme  = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg border-bottom">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="/dashboard">
+            <i class="bi bi-wallet2 me-2 text-primary"></i>Family Budget
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">
+                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/transactions' %}active{% endif %}" href="/transactions">
+                        <i class="bi bi-list-ul me-1"></i>Transactions
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/upload' %}active{% endif %}" href="/upload">
+                        <i class="bi bi-upload me-1"></i>Upload
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.path == '/categories' %}active{% endif %}" href="/categories">
+                        <i class="bi bi-tags me-1"></i>Categories
+                    </a>
+                </li>
+            </ul>
+            <button class="btn btn-sm btn-outline-secondary" id="themeToggle" title="Toggle theme">
+                <i class="bi bi-moon-fill" id="themeIcon"></i>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<main class="container-fluid py-4">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- Toast notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="toast" class="toast align-items-center border-0" role="alert" aria-live="assertive">
+        <div class="d-flex">
+            <div class="toast-body" id="toastBody"></div>
+            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/api-client.js') }}"></script>
+<script>
+    (function () {
+        var toggle = document.getElementById('themeToggle');
+        var icon   = document.getElementById('themeIcon');
+
+        function currentTheme() {
+            return document.documentElement.getAttribute('data-bs-theme') || 'light';
+        }
+
+        function applyTheme(theme, save) {
+            document.documentElement.setAttribute('data-bs-theme', theme);
+            icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+            if (save) {
+                try { localStorage.setItem('theme', theme); } catch (e) {}
+            }
+            if (typeof onThemeChange === 'function') onThemeChange(theme);
+        }
+
+        // Sync icon with the theme the IIFE already applied
+        applyTheme(currentTheme(), false);
+
+        toggle.addEventListener('click', function () {
+            applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
+        });
+
+        // Follow OS changes only when the user hasn't manually picked a theme
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+            try {
+                if (!localStorage.getItem('theme')) {
+                    applyTheme(e.matches ? 'dark' : 'light', false);
+                }
+            } catch (e) {}
+        });
+    })();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

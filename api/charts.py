@@ -160,6 +160,22 @@ def annual_chart(year):
         return error_response('DATABASE_ERROR', 'Failed to retrieve chart data', 500)
 
 
+@charts_bp.route('/charts/periods', methods=['GET'])
+def available_periods():
+    """Return distinct year-month combinations that have transaction data."""
+    try:
+        pipeline = [
+            {'$group': {'_id': {'year': {'$year': '$date'}, 'month': {'$month': '$date'}}}},
+            {'$sort': {'_id.year': -1, '_id.month': -1}}
+        ]
+        results = list(mongo.db.transactions.aggregate(pipeline))
+        periods = [{'year': r['_id']['year'], 'month': r['_id']['month']} for r in results]
+        return success_response(data=periods, count=len(periods))
+    except PyMongoError as e:
+        current_app.logger.error(f"Database error getting periods: {str(e)}")
+        return error_response('DATABASE_ERROR', 'Failed to retrieve periods', 500)
+
+
 @charts_bp.route('/budget/status/<int:year>/<int:month>', methods=['GET'])
 def budget_status(year, month):
     """
