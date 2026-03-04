@@ -25,6 +25,12 @@ function readURLFilters() {
     if (p.get('category_id') !== null) {
         document.getElementById('filterCategory').value = p.get('category_id');
     }
+    if (p.get('start_date')) {
+        document.getElementById('filterFrom').value = p.get('start_date');
+    }
+    if (p.get('end_date')) {
+        document.getElementById('filterTo').value = p.get('end_date');
+    }
 }
 
 /* ── Build query params from filter bar ───────────────────────── */
@@ -125,12 +131,13 @@ async function openEditModal(id) {
     try {
         const res = await transactions.get(id);
         const t   = res.data;
-        document.getElementById('editId').value          = t._id;
-        document.getElementById('editDate').value        = t.date ? t.date.slice(0, 10) : '';
-        document.getElementById('editDescription').value = t.description;
-        document.getElementById('editAmount').value      = t.amount;
-        document.getElementById('editCategory').value    = t.category_id;
-        document.getElementById('editNotes').value       = t.notes || '';
+        document.getElementById('editId').value               = t._id;
+        document.getElementById('editDate').value             = t.date ? t.date.slice(0, 10) : '';
+        document.getElementById('editDescription').value      = t.description;
+        document.getElementById('editAmount').value           = t.amount;
+        document.getElementById('editCategory').value         = t.category_id;
+        document.getElementById('editNotes').value            = t.notes || '';
+        document.getElementById('editBatchCategorize').checked = true;
         new bootstrap.Modal(document.getElementById('editModal')).show();
     } catch (e) {
         showToast(e.message, 'danger');
@@ -140,11 +147,12 @@ async function openEditModal(id) {
 async function saveEdit() {
     const id   = document.getElementById('editId').value;
     const data = {
-        date:        document.getElementById('editDate').value,
-        description: document.getElementById('editDescription').value,
-        amount:      parseFloat(document.getElementById('editAmount').value),
-        category_id: parseInt(document.getElementById('editCategory').value),
-        notes:       document.getElementById('editNotes').value,
+        date:             document.getElementById('editDate').value,
+        description:      document.getElementById('editDescription').value,
+        amount:           parseFloat(document.getElementById('editAmount').value),
+        category_id:      parseInt(document.getElementById('editCategory').value),
+        notes:            document.getElementById('editNotes').value,
+        batch_categorize: document.getElementById('editBatchCategorize').checked,
     };
 
     try {

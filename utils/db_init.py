@@ -20,6 +20,7 @@ def init_db(mongo):
 
     # Default categories with colors, descriptions, and monthly limits
     default_categories = [
+        # ── System categories (cannot be deleted) ──────────────────
         {
             'id': 0,
             'name': 'Uncategorized',
@@ -47,14 +48,16 @@ def init_db(mongo):
             'is_system': True,
             'created_date': datetime.utcnow()
         },
+        # ── Housing ────────────────────────────────────────────────
         {
             'id': 3,
-            'name': 'Fee',
-            'description': 'Bank fees, service charges, and account fees',
-            'color': '#FF7043',  # Deep orange
-            'monthly_limit': 0.0,
+            'name': 'Home',
+            'description': 'Mortgage/rent, property tax, home insurance, and maintenance',
+            'color': '#795548',  # Brown
+            'monthly_limit': 1500.0,
             'created_date': datetime.utcnow()
         },
+        # ── Food ───────────────────────────────────────────────────
         {
             'id': 4,
             'name': 'Groceries',
@@ -65,42 +68,130 @@ def init_db(mongo):
         },
         {
             'id': 5,
+            'name': 'Restaurants',
+            'description': 'Dining out, takeout, and food delivery',
+            'color': '#EF5350',  # Red
+            'monthly_limit': 300.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Clothing ───────────────────────────────────────────────
+        {
+            'id': 6,
+            'name': 'Clothing',
+            'description': 'Clothes and shoes for the whole family',
+            'color': '#EC407A',  # Pink/Magenta
+            'monthly_limit': 150.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Transportation ─────────────────────────────────────────
+        {
+            'id': 7,
+            'name': 'Auto',
+            'description': 'Car payments, auto insurance, and vehicle maintenance',
+            'color': '#607D8B',  # Blue-grey
+            'monthly_limit': 400.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 8,
             'name': 'Gas',
             'description': 'Fuel and gas station purchases',
             'color': '#FF9800',  # Orange
             'monthly_limit': 200.0,
             'created_date': datetime.utcnow()
         },
+        # ── Bills & Services ───────────────────────────────────────
         {
-            'id': 6,
-            'name': 'Restaurants',
-            'description': 'Dining out, takeout, and food delivery',
-            'color': '#F44336',  # Red
+            'id': 9,
+            'name': 'Utilities',
+            'description': 'Electric, water, and heating/natural gas bills',
+            'color': '#1E88E5',  # Blue
             'monthly_limit': 300.0,
             'created_date': datetime.utcnow()
         },
         {
-            'id': 7,
+            'id': 10,
+            'name': 'Telecom',
+            'description': 'Internet, cable, cell phones, and home phone',
+            'color': '#00ACC1',  # Cyan
+            'monthly_limit': 200.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 11,
+            'name': 'Subscriptions',
+            'description': 'Streaming services, software, and recurring digital subscriptions',
+            'color': '#7E57C2',  # Deep purple
+            'monthly_limit': 50.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Health & Personal ──────────────────────────────────────
+        {
+            'id': 12,
+            'name': 'Health',
+            'description': 'Doctor visits, pharmacy, dental, and health/dental insurance premiums',
+            'color': '#66BB6A',  # Light green
+            'monthly_limit': 200.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 13,
+            'name': 'Personal Care',
+            'description': 'Haircuts, salon, spa, and personal hygiene products',
+            'color': '#F06292',  # Light pink
+            'monthly_limit': 100.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Lifestyle ──────────────────────────────────────────────
+        {
+            'id': 14,
             'name': 'Entertainment',
             'description': 'Movies, games, hobbies, and leisure activities',
-            'color': '#9C27B0',  # Purple
+            'color': '#AB47BC',  # Purple
             'monthly_limit': 150.0,
             'created_date': datetime.utcnow()
         },
+        # ── Giving ─────────────────────────────────────────────────
         {
-            'id': 8,
-            'name': 'Utilities',
-            'description': 'Electric, water, internet, phone bills',
-            'color': '#2196F3',  # Blue
-            'monthly_limit': 400.0,
+            'id': 15,
+            'name': 'Gift',
+            'description': 'Birthday, holiday, and special occasion gifts',
+            'color': '#FF7043',  # Deep orange
+            'monthly_limit': 100.0,
             'created_date': datetime.utcnow()
         },
         {
-            'id': 9,
+            'id': 16,
+            'name': 'Donations',
+            'description': 'Charitable giving and religious contributions',
+            'color': '#26A69A',  # Teal
+            'monthly_limit': 100.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Education & Childcare ──────────────────────────────────
+        {
+            'id': 19,
+            'name': 'Education',
+            'description': 'Day care, school fees, tutoring, school supplies, and extracurriculars',
+            'color': '#FFA726',  # Amber
+            'monthly_limit': 0.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Savings & Fees ─────────────────────────────────────────
+        {
+            'id': 17,
             'name': 'Investment',
             'description': 'Savings, stocks, retirement, and investment accounts',
-            'color': '#009688',  # Teal
+            'color': '#009688',  # Dark teal
             'monthly_limit': 1000.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 18,
+            'name': 'Fee',
+            'description': 'Bank fees, service charges, and account fees',
+            'color': '#78909C',  # Blue-grey
+            'monthly_limit': 0.0,
             'created_date': datetime.utcnow()
         },
     ]

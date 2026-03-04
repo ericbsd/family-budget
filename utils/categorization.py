@@ -267,11 +267,24 @@ class AutoCategorizer:
         description_clean = description.strip().upper()
         merchant_pattern = self._extract_merchant_pattern(description_clean)
 
-        # Only match transactions that START with the same words as the original.
-        # Using the first 3 words as an anchor prevents cross-type false positives
-        # (e.g. "CONTACTLESS INTERAC PURCHASE" will never match "E-TRANSFER SENT …").
-        first_words = ' '.join(description_clean.split()[:3])
-        batch_regex = '^' + re.escape(first_words) + '.*' + re.escape(merchant_pattern)
+        # Build an anchor from words that appear BEFORE the merchant name in the
+        # original description (i.e. the bank prefix words). This prevents
+        # cross-type false positives ("E-TRANSFER SENT" never matches
+        # "CONTACTLESS INTERAC PURCHASE") without the overlap bug that occurs
+        # when a merchant word also appears inside the first-3-words anchor.
+        merchant_words = set(merchant_pattern.split())
+        anchor_words = []
+        for word in description_clean.split():
+            if word in merchant_words:
+                break
+            anchor_words.append(word)
+
+        if anchor_words:
+            anchor = re.escape(' '.join(anchor_words[:3]))
+            batch_regex = f'^{anchor}.*{re.escape(merchant_pattern)}'
+        else:
+            # No prefix — merchant starts the description, match anywhere
+            batch_regex = re.escape(merchant_pattern)
 
         # Find all uncategorized transactions (category_id=0) that match the pattern
         uncategorized = self.mongo.db.transactions.find({

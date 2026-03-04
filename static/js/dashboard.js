@@ -1,6 +1,14 @@
 let categoryChart = null;
 let trendChart    = null;
 
+/* ── Navigate to transactions filtered by category + period ────── */
+function periodUrl(categoryId, year, month) {
+    const pad   = String(month).padStart(2, '0');
+    const start = `${year}-${pad}-01`;
+    const end   = new Date(year, month, 0).toISOString().slice(0, 10);
+    return `/transactions?category_id=${categoryId}&start_date=${start}&end_date=${end}`;
+}
+
 /* ── Theme-aware chart colours ────────────────────────────────── */
 function chartTheme() {
     const dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
@@ -140,6 +148,14 @@ async function loadCategoryChart(year, month) {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    onHover: (evt, elements) => {
+                        evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    },
+                    onClick: (evt, elements) => {
+                        if (!elements.length) return;
+                        const { year, month } = selectedPeriod();
+                        window.location.href = periodUrl(data[elements[0].index].category_id, year, month);
+                    },
                     plugins: {
                         legend: { position: 'right', labels: { color: t.text, padding: 12, boxWidth: 14 } },
                         tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${formatAmount(ctx.raw)}` } },
@@ -171,7 +187,7 @@ async function loadBudgetStatus(year, month) {
                 : formatAmount(d.actual);
 
             return `
-            <div class="mb-3">
+            <div class="mb-3" style="cursor:pointer" data-cat-id="${d.category_id}">
                 <div class="d-flex justify-content-between small mb-1">
                     <span>
                         <span class="cat-dot" style="background:${d.color || '#6c757d'}"></span>
@@ -274,4 +290,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
     document.getElementById('monthSelect').addEventListener('change', loadDashboard);
     // yearSelect change → loadDashboard is wired inside initSelectors
+
+    document.getElementById('budgetStatus').addEventListener('click', e => {
+        const row = e.target.closest('[data-cat-id]');
+        if (!row) return;
+        const { year, month } = selectedPeriod();
+        window.location.href = periodUrl(row.dataset.catId, year, month);
+    });
 });

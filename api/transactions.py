@@ -277,22 +277,23 @@ def update_transaction(transaction_id):
             from utils.categorization import AutoCategorizer
             categorizer = AutoCategorizer(mongo)
 
-            # Learn from this categorization
+            # Always learn from this categorization (affects future CSV uploads)
             categorizer.learn_from_categorization(
                 updated_transaction['description'],
                 update_doc['category_id']
             )
 
-            # Batch categorize all matching uncategorized transactions
-            batch_count = categorizer.batch_categorize_similar(
-                updated_transaction['description'],
-                update_doc['category_id']
-            )
-
-            if batch_count > 0:
-                current_app.logger.info(
-                    f"Batch categorized {batch_count} similar transactions to category {update_doc['category_id']}"
+            # Batch categorize existing uncategorized transactions only if requested
+            if data.get('batch_categorize', True):
+                batch_count = categorizer.batch_categorize_similar(
+                    updated_transaction['description'],
+                    update_doc['category_id']
                 )
+
+                if batch_count > 0:
+                    current_app.logger.info(
+                        f"Batch categorized {batch_count} similar transactions to category {update_doc['category_id']}"
+                    )
 
         current_app.logger.info(f"Updated transaction: {transaction_id}")
 
