@@ -4,13 +4,22 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h4 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h4>
-    <div class="d-flex gap-2 align-items-center flex-wrap">
-        <select class="form-select form-select-sm" id="monthSelect" style="width:auto"></select>
-        <select class="form-select form-select-sm" id="yearSelect"  style="width:auto"></select>
-        <button class="btn btn-sm btn-primary" id="refreshBtn">
-            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+    <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+        <select class="form-select form-select-sm" name="year" style="width:auto"
+                onchange="this.form.submit()">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+        <select class="form-select form-select-sm" name="month" style="width:auto">
+            {% for m in months %}
+            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ month_names[m-1] }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-arrow-clockwise me-1"></i>View
         </button>
-    </div>
+    </form>
 </div>
 
 <!-- Summary cards -->
@@ -19,7 +28,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Total Spent</div>
-                <div class="summary-value amount-expense" id="totalSpent">—</div>
+                <div class="summary-value amount-expense">{{ stats.total_expenses | money }}</div>
             </div>
         </div>
     </div>
@@ -27,7 +36,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Total Income</div>
-                <div class="summary-value amount-income" id="totalIncome">—</div>
+                <div class="summary-value amount-income">{{ stats.total_income | money }}</div>
             </div>
         </div>
     </div>
@@ -35,7 +44,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Transactions</div>
-                <div class="summary-value" id="txCount">—</div>
+                <div class="summary-value">{{ stats.transaction_count }}</div>
             </div>
         </div>
     </div>
@@ -43,7 +52,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Uncategorized</div>
-                <div class="summary-value text-warning" id="uncatCount">—</div>
+                <div class="summary-value text-warning">{{ uncat_count }}</div>
                 <a href="/transactions?category_id=0" class="small">Review →</a>
             </div>
         </div>
@@ -56,17 +65,54 @@
         <div class="card h-100">
             <div class="card-header fw-medium">Spending by Category</div>
             <div class="card-body">
-                <div class="chart-container" id="categoryChartWrap">
+                {% if category_data %}
+                <div class="chart-container">
                     <canvas id="categoryChart"></canvas>
                 </div>
+                {% else %}
+                <div class="text-center text-muted py-5">No spending data for this period.</div>
+                {% endif %}
             </div>
         </div>
     </div>
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-header fw-medium">Budget Status</div>
-            <div class="card-body overflow-auto" id="budgetStatus" style="max-height:340px">
-                <div class="text-muted text-center py-4">Loading…</div>
+            <div class="card-body overflow-auto" style="max-height:340px">
+                {% if budget_status %}
+                {% for d in budget_status %}
+                {% set pct = [d.percentage, 100] | min %}
+                {% if d.budget > 0 %}
+                    {% if pct >= 100 %}{% set color = 'danger' %}
+                    {% elif pct >= 80 %}{% set color = 'warning' %}
+                    {% else %}{% set color = 'success' %}{% endif %}
+                {% endif %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>
+                            <span class="cat-dot" style="background:{{ d.color or '#6c757d' }}"></span>
+                            <a href="/transactions?category_id={{ d.category_id }}&start_date={{ year }}-{{ '%02d' % month }}-01" class="text-decoration-none">{{ d.category }}</a>
+                        </span>
+                        <span class="text-muted">
+                            {% if d.budget > 0 %}
+                            {{ d.actual | money }} / {{ d.budget | money }}
+                            {% else %}
+                            {{ d.actual | money }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% if d.budget > 0 %}
+                    <div class="progress" style="height:6px">
+                        <div class="progress-bar bg-{{ color }}" style="width:{{ pct }}%"></div>
+                    </div>
+                    {% else %}
+                    <div class="text-muted small fst-italic">No limit set</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-muted text-center py-4">No budget data.</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -78,9 +124,13 @@
         <div class="card">
             <div class="card-header fw-medium">Spending Trend – Last 6 Months</div>
             <div class="card-body">
+                {% if trend_data %}
                 <div class="chart-container">
                     <canvas id="trendChart"></canvas>
                 </div>
+                {% else %}
+                <div class="text-center text-muted py-5">No trend data available.</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -90,9 +140,9 @@
 <div class="row g-3">
     <div class="col-12">
         <div class="card">
-            <div class="card-header fw-medium">Top Merchants This Month</div>
+            <div class="card-header fw-medium">Top Merchants – {{ month_name }} {{ year }}</div>
             <div class="card-body p-0">
-                <table class="table table-hover mb-0" id="merchantsTable">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
                             <th style="width:2rem">#</th>
@@ -102,7 +152,18 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td colspan="4" class="text-center text-muted py-4">Loading…</td></tr>
+                        {% if top_merchants %}
+                        {% for m in top_merchants %}
+                        <tr>
+                            <td class="text-muted">{{ loop.index }}</td>
+                            <td>{{ m.merchant }}</td>
+                            <td class="text-end">{{ m.count }}</td>
+                            <td class="text-end amount-expense">{{ m.total | money }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">No data for this period.</td></tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -112,5 +173,72 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+(function () {
+    function fmt(v) {
+        return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(Math.abs(v));
+    }
+    function chartColors() {
+        const dark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        return {
+            text: dark ? '#dee2e6' : '#212529',
+            grid: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+        };
+    }
+
+    const catData   = {{ category_json | safe }};
+    const trendData = {{ trend_json | safe }};
+    let catChart = null, trendChart = null;
+
+    function drawCategoryChart() {
+        const canvas = document.getElementById('categoryChart');
+        if (!canvas) return;
+        const data = catData.filter(d => Math.abs(d.total) > 0);
+        if (!data.length) return;
+        const t = chartColors();
+        if (catChart) catChart.destroy();
+        catChart = new Chart(canvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels:   data.map(d => d.category || 'Cat ' + d.category_id),
+                datasets: [{ data: data.map(d => Math.abs(d.total)), backgroundColor: data.map(d => d.color || '#6c757d'), borderWidth: 2 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: t.text, padding: 12, boxWidth: 14 } },
+                    tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + fmt(ctx.raw) } },
+                },
+            },
+        });
+    }
+
+    function drawTrendChart() {
+        const canvas = document.getElementById('trendChart');
+        if (!canvas) return;
+        const t = chartColors();
+        if (trendChart) trendChart.destroy();
+        trendChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels:   trendData.map(d => d.month),
+                datasets: [{ label: 'Total Spent', data: trendData.map(d => Math.abs(d.total)), borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.08)', fill: true, tension: 0.3, pointRadius: 5 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } } },
+                scales: {
+                    x: { ticks: { color: t.text }, grid: { color: t.grid } },
+                    y: { ticks: { color: t.text, callback: v => fmt(v) }, grid: { color: t.grid } },
+                },
+            },
+        });
+    }
+
+    drawCategoryChart();
+    drawTrendChart();
+
+    function onThemeChange() { drawCategoryChart(); drawTrendChart(); }
+})();
+</script>
 {% endblock %}

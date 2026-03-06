@@ -10,46 +10,16 @@
         <div class="card">
             <div class="card-header fw-medium">Import Bank Transactions</div>
             <div class="card-body">
-
-                <!-- Drop zone -->
-                <div class="drop-zone" id="dropZone">
-                    <input type="file" id="fileInput" accept=".csv,.txt">
-                    <i class="bi bi-file-earmark-arrow-up fs-1 text-muted d-block mb-2"></i>
-                    <div class="fw-medium mb-1">Drag &amp; drop your CSV file here</div>
-                    <div class="text-muted small mb-3">or click to browse</div>
-                    <button type="button" class="btn btn-sm btn-outline-primary"
-                            onclick="document.getElementById('fileInput').click()">
-                        Browse Files
+                <form method="post" action="/upload" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">CSV / TXT File <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="file" accept=".csv,.txt" required>
+                        <div class="form-text">Supports most Canadian bank export formats (TD, RBC, Scotiabank, etc.)</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload me-1"></i>Import Transactions
                     </button>
-                </div>
-
-                <!-- File info (shown after selection) -->
-                <div id="fileInfo" class="d-none mt-3">
-                    <div class="d-flex align-items-center gap-2 p-3 border rounded mb-3">
-                        <i class="bi bi-file-earmark-text fs-4 text-primary"></i>
-                        <div class="flex-grow-1" style="min-width:0">
-                            <div class="fw-medium text-truncate" id="fileName"></div>
-                            <div class="text-muted small"      id="fileSize"></div>
-                        </div>
-                        <button class="btn btn-sm btn-outline-secondary" id="clearFileBtn">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-outline-secondary flex-fill" id="validateBtn">
-                            <i class="bi bi-check2-circle me-1"></i>Validate
-                        </button>
-                        <button class="btn btn-primary flex-fill" id="uploadBtn">
-                            <i class="bi bi-upload me-1"></i>Import
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Validate result -->
-                <div id="validateResult" class="d-none mt-3"></div>
-
-                <!-- Upload result -->
-                <div id="uploadResult" class="d-none mt-3"></div>
+                </form>
             </div>
         </div>
     </div>
@@ -57,15 +27,10 @@
     <!-- ── Upload history ─────────────────────────────────────── -->
     <div class="col-lg-6">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center fw-medium">
-                Upload History
-                <button class="btn btn-sm btn-outline-secondary" id="refreshHistoryBtn" title="Refresh">
-                    <i class="bi bi-arrow-clockwise"></i>
-                </button>
-            </div>
+            <div class="card-header fw-medium">Upload History</div>
             <div class="card-body p-0" style="max-height:500px;overflow-y:auto">
                 <table class="table table-hover table-sm mb-0">
-                    <thead class="table-sticky-head">
+                    <thead>
                         <tr>
                             <th>File</th>
                             <th>Date</th>
@@ -74,16 +39,28 @@
                             <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody id="historyBody">
-                        <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+                    <tbody>
+                        {% if uploads %}
+                        {% for u in uploads %}
+                        <tr>
+                            <td class="small text-truncate" style="max-width:140px" title="{{ u.filename }}">{{ u.filename }}</td>
+                            <td class="small text-nowrap">{{ u.upload_date_str }}</td>
+                            <td class="text-end small">{{ u.row_count }}</td>
+                            <td class="text-end small">{{ u.categorized_count | default(0) }}</td>
+                            <td>
+                                <span class="badge {% if u.status == 'processed' %}bg-success{% else %}bg-secondary{% endif %} small">
+                                    {{ u.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">No uploads yet.</td></tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
 {% endblock %}

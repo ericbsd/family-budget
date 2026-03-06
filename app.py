@@ -37,6 +37,20 @@ def create_app(config_name=None):
     mongo.init_app(flask_app)
     CORS(flask_app)
 
+    # Jinja2 filters
+    @flask_app.template_filter('money')
+    def money_filter(value):
+        try:
+            return f'${abs(float(value)):,.2f}'
+        except (TypeError, ValueError):
+            return '$0.00'
+
+    @flask_app.template_filter('dateformat')
+    def date_filter(value, fmt='%b %d, %Y'):
+        if isinstance(value, __import__('datetime').datetime):
+            return value.strftime(fmt)
+        return str(value) if value else ''
+
     # Initialize database (create default categories and indexes)
     with flask_app.app_context():
         init_result = init_db(mongo)

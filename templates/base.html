@@ -60,23 +60,25 @@
     </div>
 </nav>
 
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="container-fluid pt-3 pb-0">
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show mb-2" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
 <main class="container-fluid py-4">
     {% block content %}{% endblock %}
 </main>
 
-<!-- Toast notifications -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <div id="toast" class="toast align-items-center border-0" role="alert" aria-live="assertive">
-        <div class="d-flex">
-            <div class="toast-body" id="toastBody"></div>
-            <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="{{ url_for('static', filename='js/api-client.js') }}"></script>
 <script>
     (function () {
         var toggle = document.getElementById('themeToggle');
@@ -95,14 +97,12 @@
             if (typeof onThemeChange === 'function') onThemeChange(theme);
         }
 
-        // Sync icon with the theme the IIFE already applied
         applyTheme(currentTheme(), false);
 
         toggle.addEventListener('click', function () {
             applyTheme(currentTheme() === 'dark' ? 'light' : 'dark', true);
         });
 
-        // Follow OS changes only when the user hasn't manually picked a theme
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
             try {
                 if (!localStorage.getItem('theme')) {

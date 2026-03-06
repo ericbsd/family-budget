@@ -4,96 +4,152 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0"><i class="bi bi-tags me-2"></i>Categories</h4>
-    <button class="btn btn-sm btn-primary" id="addCategoryBtn">
+    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
         <i class="bi bi-plus-lg me-1"></i>Add Category
     </button>
 </div>
 
-<div class="row g-3" id="categoriesGrid">
-    <div class="col-12 text-center text-muted py-5">Loading…</div>
+<div class="row g-3">
+    {% if categories %}
+    {% for c in categories %}
+    <div class="col-sm-6 col-lg-4">
+        <div class="card h-100" style="border-left:4px solid {{ c.color }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="badge mb-1" style="background-color:{{ c.color }}">{{ c.name }}</span>
+                        {% if c.is_system %}<span class="badge bg-secondary ms-1 small">system</span>{% endif %}
+                        {% if c.description %}
+                        <div class="text-muted small mt-1">{{ c.description }}</div>
+                        {% endif %}
+                        {% if c.monthly_limit %}
+                        <div class="text-muted small">Limit: {{ c.monthly_limit | money }}/mo</div>
+                        {% endif %}
+                    </div>
+                    {% if not c.is_system %}
+                    <div class="d-flex gap-1 ms-2 flex-shrink-0">
+                        <button class="btn btn-sm btn-outline-secondary py-0 px-1 edit-btn"
+                                data-id="{{ c.id }}"
+                                data-name="{{ c.name | e }}"
+                                data-description="{{ c.description | default('') | e }}"
+                                data-color="{{ c.color }}"
+                                data-limit="{{ c.monthly_limit | default(0) }}"
+                                title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <form method="post" action="/categories/{{ c.id }}/delete"
+                              style="display:inline"
+                              onsubmit="return confirm('Delete category {{ c.name | e }}?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="col-12 text-center text-muted py-5">No categories found.</div>
+    {% endif %}
 </div>
 
-<!-- ── Add / Edit Modal ────────────────────────────────────────── -->
-<div class="modal fade" id="categoryModal" tabindex="-1">
+<!-- ── Add Modal ───────────────────────────────────────────────── -->
+<div class="modal fade" id="addModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="categoryModalTitle">Add Category</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="catEditId">
-                <div class="mb-3">
-                    <label class="form-label">Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="catName" placeholder="e.g. Groceries">
+            <form method="post" action="/categories/add">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <input type="text" class="form-control" id="catDescription"
-                           placeholder="e.g. Food &amp; household items">
-                </div>
-                <div class="row g-3">
-                    <div class="col-sm-6">
-                        <label class="form-label">Colour</label>
-                        <input type="hidden" id="catColor" value="#4CAF50">
-                        <div class="d-flex gap-2 align-items-center mb-2">
-                            <div id="catColorSwatch"
-                                 style="width:2.2rem;height:2.2rem;border-radius:.375rem;background:#4CAF50;flex-shrink:0;border:2px solid rgba(0,0,0,.15)"></div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary"
-                                    id="randomizeColorBtn" title="Random colour">
-                                <i class="bi bi-shuffle"></i> Random
-                            </button>
-                            <label class="btn btn-sm btn-outline-secondary mb-0"
-                                   title="Open colour picker" style="cursor:pointer">
-                                <i class="bi bi-eyedropper"></i> Custom
-                                <input type="color" id="catColorPicker" value="#4CAF50"
-                                       style="position:absolute;width:0;height:0;opacity:0;pointer-events:none">
-                            </label>
-                        </div>
-                        <div id="colorPalette"
-                             style="display:grid;grid-template-columns:repeat(7,1.8rem);gap:.25rem"></div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" placeholder="e.g. Groceries" required>
                     </div>
-                    <div class="col-sm-6">
-                        <label class="form-label">Monthly Limit</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" min="0" class="form-control"
-                                   id="catLimit" placeholder="0.00">
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" placeholder="e.g. Food & household items">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label">Colour</label>
+                            <input type="color" class="form-control form-control-color" name="color" value="#4CAF50">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label">Monthly Limit</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" class="form-control" name="monthly_limit" placeholder="0.00">
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveCategoryBtn">Save</button>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Category</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 
-<!-- ── Delete Confirm Modal ────────────────────────────────────── -->
-<div class="modal fade" id="deleteCatModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
+<!-- ── Edit Modal ──────────────────────────────────────────────── -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Delete Category</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Delete <strong id="deleteCatName"></strong>?</p>
-                <p class="text-muted small mb-0">
-                    Categories with existing transactions cannot be deleted.
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteCatBtn">Delete</button>
-            </div>
+            <form method="post" id="editForm">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="editName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description" id="editDescription">
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label">Colour</label>
+                            <input type="color" class="form-control form-control-color" name="color" id="editColor">
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label">Monthly Limit</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" class="form-control" name="monthly_limit" id="editLimit" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/categories.js') }}"></script>
+<script>
+document.querySelectorAll('.edit-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        document.getElementById('editForm').action = '/categories/' + this.dataset.id + '/edit';
+        document.getElementById('editName').value        = this.dataset.name;
+        document.getElementById('editDescription').value = this.dataset.description;
+        document.getElementById('editColor').value       = this.dataset.color;
+        document.getElementById('editLimit').value       = this.dataset.limit;
+        new bootstrap.Modal(document.getElementById('editModal')).show();
+    });
+});
+</script>
 {% endblock %}

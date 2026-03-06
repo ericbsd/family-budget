@@ -18,14 +18,14 @@ def init_db(mongo):
     """
     db = mongo.db
 
-    # Default categories with colors, descriptions, and monthly limits
+    # Default categories ordered by priority of need (Maslow for money)
     default_categories = [
-        # ── System categories (cannot be deleted) ──────────────────
+        # ── System (administrative) ────────────────────────────────
         {
             'id': 0,
             'name': 'Uncategorized',
             'description': 'Transactions not yet categorized',
-            'color': '#9E9E9E',  # Gray
+            'color': '#9E9E9E',
             'monthly_limit': 0.0,
             'is_system': True,
             'created_date': datetime.utcnow()
@@ -34,7 +34,7 @@ def init_db(mongo):
             'id': 1,
             'name': 'Entry',
             'description': 'Money coming in — salary, deposits, refunds. Excluded from budget charts.',
-            'color': '#616161',  # Dark gray
+            'color': '#616161',
             'monthly_limit': 0.0,
             'is_system': True,
             'created_date': datetime.utcnow()
@@ -43,7 +43,7 @@ def init_db(mongo):
             'id': 2,
             'name': 'Transaction',
             'description': 'Bank transfers, credit card payments, loan payments.',
-            'color': '#546E7A',  # Blue-gray
+            'color': '#546E7A',
             'monthly_limit': 0.0,
             'is_system': True,
             'created_date': datetime.utcnow()
@@ -53,93 +53,92 @@ def init_db(mongo):
             'id': 3,
             'name': 'Home',
             'description': 'Mortgage/rent, property tax, home insurance, and maintenance',
-            'color': '#795548',  # Brown
+            'color': '#795548',
             'monthly_limit': 1500.0,
             'created_date': datetime.utcnow()
         },
-        # ── Food ───────────────────────────────────────────────────
         {
             'id': 4,
-            'name': 'Groceries',
-            'description': 'Food, household items, and grocery shopping',
-            'color': '#4CAF50',  # Green
-            'monthly_limit': 500.0,
+            'name': 'Utilities',
+            'description': 'Electric, water, and heating/natural gas bills',
+            'color': '#1E88E5',
+            'monthly_limit': 300.0,
             'created_date': datetime.utcnow()
         },
         {
             'id': 5,
-            'name': 'Restaurants',
-            'description': 'Dining out, takeout, and food delivery',
-            'color': '#EF5350',  # Red
-            'monthly_limit': 300.0,
-            'created_date': datetime.utcnow()
-        },
-        # ── Clothing ───────────────────────────────────────────────
-        {
-            'id': 6,
-            'name': 'Clothing',
-            'description': 'Clothes and shoes for the whole family',
-            'color': '#EC407A',  # Pink/Magenta
-            'monthly_limit': 150.0,
+            'name': 'Telecom',
+            'description': 'Internet, cable, cell phones, and home phone',
+            'color': '#00ACC1',
+            'monthly_limit': 200.0,
             'created_date': datetime.utcnow()
         },
         # ── Transportation ─────────────────────────────────────────
         {
-            'id': 7,
+            'id': 6,
             'name': 'Auto',
             'description': 'Car payments, auto insurance, and vehicle maintenance',
-            'color': '#607D8B',  # Blue-grey
+            'color': '#607D8B',
             'monthly_limit': 400.0,
             'created_date': datetime.utcnow()
         },
         {
-            'id': 8,
+            'id': 7,
             'name': 'Gas',
             'description': 'Fuel and gas station purchases',
-            'color': '#FF9800',  # Orange
+            'color': '#FF9800',
             'monthly_limit': 200.0,
             'created_date': datetime.utcnow()
         },
-        # ── Bills & Services ───────────────────────────────────────
+        # ── Food ───────────────────────────────────────────────────
         {
-            'id': 9,
-            'name': 'Utilities',
-            'description': 'Electric, water, and heating/natural gas bills',
-            'color': '#1E88E5',  # Blue
-            'monthly_limit': 300.0,
+            'id': 8,
+            'name': 'Groceries',
+            'description': 'Food, household items, and grocery shopping',
+            'color': '#4CAF50',
+            'monthly_limit': 500.0,
             'created_date': datetime.utcnow()
         },
         {
+            'id': 9,
+            'name': 'Restaurants',
+            'description': 'Dining out, takeout, and food delivery',
+            'color': '#EF5350',
+            'monthly_limit': 300.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Health & Personal ──────────────────────────────────────
+        {
             'id': 10,
-            'name': 'Telecom',
-            'description': 'Internet, cable, cell phones, and home phone',
-            'color': '#00ACC1',  # Cyan
+            'name': 'Health',
+            'description': 'Doctor visits, pharmacy, dental, and health/dental insurance premiums',
+            'color': '#66BB6A',
             'monthly_limit': 200.0,
             'created_date': datetime.utcnow()
         },
         {
             'id': 11,
-            'name': 'Subscriptions',
-            'description': 'Streaming services, software, and recurring digital subscriptions',
-            'color': '#7E57C2',  # Deep purple
-            'monthly_limit': 50.0,
+            'name': 'Personal Care',
+            'description': 'Haircuts, salon, spa, and personal hygiene products',
+            'color': '#F06292',
+            'monthly_limit': 100.0,
             'created_date': datetime.utcnow()
         },
-        # ── Health & Personal ──────────────────────────────────────
+        # ── Family ─────────────────────────────────────────────────
         {
             'id': 12,
-            'name': 'Health',
-            'description': 'Doctor visits, pharmacy, dental, and health/dental insurance premiums',
-            'color': '#66BB6A',  # Light green
-            'monthly_limit': 200.0,
+            'name': 'Clothing',
+            'description': 'Clothes and shoes for the whole family',
+            'color': '#EC407A',
+            'monthly_limit': 150.0,
             'created_date': datetime.utcnow()
         },
         {
             'id': 13,
-            'name': 'Personal Care',
-            'description': 'Haircuts, salon, spa, and personal hygiene products',
-            'color': '#F06292',  # Light pink
-            'monthly_limit': 100.0,
+            'name': 'Education',
+            'description': 'Day care, school fees, tutoring, school supplies, and extracurriculars',
+            'color': '#FFA726',
+            'monthly_limit': 0.0,
             'created_date': datetime.utcnow()
         },
         # ── Lifestyle ──────────────────────────────────────────────
@@ -147,50 +146,58 @@ def init_db(mongo):
             'id': 14,
             'name': 'Entertainment',
             'description': 'Movies, games, hobbies, and leisure activities',
-            'color': '#AB47BC',  # Purple
+            'color': '#AB47BC',
             'monthly_limit': 150.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 15,
+            'name': 'Subscriptions',
+            'description': 'Streaming services, software, and recurring digital subscriptions',
+            'color': '#7E57C2',
+            'monthly_limit': 50.0,
+            'created_date': datetime.utcnow()
+        },
+        # ── Financial ──────────────────────────────────────────────
+        {
+            'id': 16,
+            'name': 'Savings',
+            'description': 'Money set aside in savings accounts',
+            'color': '#26A69A',
+            'monthly_limit': 0.0,
+            'created_date': datetime.utcnow()
+        },
+        {
+            'id': 17,
+            'name': 'Investment',
+            'description': 'Stocks, retirement, and investment accounts',
+            'color': '#009688',
+            'monthly_limit': 1000.0,
             'created_date': datetime.utcnow()
         },
         # ── Giving ─────────────────────────────────────────────────
         {
-            'id': 15,
+            'id': 18,
             'name': 'Gift',
             'description': 'Birthday, holiday, and special occasion gifts',
-            'color': '#FF7043',  # Deep orange
+            'color': '#FF7043',
             'monthly_limit': 100.0,
             'created_date': datetime.utcnow()
         },
-        {
-            'id': 16,
-            'name': 'Donations',
-            'description': 'Charitable giving and religious contributions',
-            'color': '#26A69A',  # Teal
-            'monthly_limit': 100.0,
-            'created_date': datetime.utcnow()
-        },
-        # ── Education & Childcare ──────────────────────────────────
         {
             'id': 19,
-            'name': 'Education',
-            'description': 'Day care, school fees, tutoring, school supplies, and extracurriculars',
-            'color': '#FFA726',  # Amber
-            'monthly_limit': 0.0,
+            'name': 'Donations',
+            'description': 'Charitable giving and religious contributions',
+            'color': '#5C6BC0',
+            'monthly_limit': 100.0,
             'created_date': datetime.utcnow()
         },
-        # ── Savings & Fees ─────────────────────────────────────────
+        # ── Other ──────────────────────────────────────────────────
         {
-            'id': 17,
-            'name': 'Investment',
-            'description': 'Savings, stocks, retirement, and investment accounts',
-            'color': '#009688',  # Dark teal
-            'monthly_limit': 1000.0,
-            'created_date': datetime.utcnow()
-        },
-        {
-            'id': 18,
+            'id': 20,
             'name': 'Fee',
             'description': 'Bank fees, service charges, and account fees',
-            'color': '#78909C',  # Blue-grey
+            'color': '#78909C',
             'monthly_limit': 0.0,
             'created_date': datetime.utcnow()
         },
@@ -201,7 +208,6 @@ def init_db(mongo):
 
     # Insert default categories if they don't exist
     for category in default_categories:
-        # Check by both id and name for safety
         existing = db.categories.find_one({'$or': [{'id': category['id']}, {'name': category['name']}]})
         if not existing:
             db.categories.insert_one(category)
@@ -222,13 +228,8 @@ def init_db(mongo):
     )
 
     # Create indexes for transactions collection
-    # Index on date for efficient date range queries
     db.transactions.create_index('date')
-
-    # Index on category_id for filtering by category
     db.transactions.create_index('category_id')
-
-    # Compound index for date + category_id queries
     db.transactions.create_index([('date', 1), ('category_id', 1)])
 
     # Create indexes for categorization_rules collection
@@ -259,7 +260,6 @@ def reset_db(mongo):
     """
     db = mongo.db
 
-    # Drop all collections
     db.transactions.drop()
     db.categories.drop()
     db.categorization_rules.drop()
