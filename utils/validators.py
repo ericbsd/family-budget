@@ -8,12 +8,12 @@ from bson.errors import InvalidId
 from flask import request
 
 
-def validate_json_request(required_fields=None):
+def validate_json_request(required_fields: list[str]) -> tuple:
     """
     Validate that request contains JSON data and has required fields.
 
     Args:
-        required_fields: List of required field names (optional)
+        required_fields: List of required field names
 
     Returns:
         tuple: (data, error_response) where error_response is None if valid
@@ -25,56 +25,86 @@ def validate_json_request(required_fields=None):
     if not data:
         return None, error_response('INVALID_REQUEST', 'Request body must be JSON')
 
-    if required_fields:
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return None, error_response('MISSING_FIELDS',
-                                       f'Missing required fields: {", ".join(missing_fields)}')
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return None, error_response(
+            'MISSING_FIELDS',
+            f'Missing required fields: {", ".join(missing_fields)}',
+        )
 
     return data, None
 
 
-def validate_category_id(category_id, mongo):
+def validate_category_id(category_id: int, mongo) -> tuple:
     """
-    Validate that a category ID exists.
+    Validate that a category ID exists in the database.
 
     Args:
         category_id: Category ID to validate
         mongo: Flask-PyMongo instance
 
     Returns:
-        tuple: (is_valid, error_response)
+        tuple: (is_valid, error_response) where error_response is None if valid
     """
     from utils.responses import error_response
 
     if not isinstance(category_id, int) or category_id < 0:
-        return False, error_response('INVALID_CATEGORY_ID',
-                                     'category_id must be a non-negative integer')
+        return False, error_response(
+            'INVALID_CATEGORY_ID',
+            'category_id must be a non-negative integer',
+        )
 
-    # Verify category exists
     category_doc = mongo.db.categories.find_one({'id': category_id})
     if not category_doc:
-        return False, error_response('INVALID_CATEGORY_ID', f'Category ID {category_id} does not exist')
+        return False, error_response(
+            'INVALID_CATEGORY_ID',
+            f'Category ID {category_id} does not exist',
+        )
 
     return True, None
 
 
-def _validate_date_field(date_value):
-    """Helper to validate date field."""
-    if isinstance(date_value, str):
-        return datetime.strptime(date_value, '%Y-%m-%d')
-    return date_value
+def _validate_date_field(date_value: str | datetime) -> datetime:
+    """
+    Parse and validate a date value from request data.
+
+    Passes existing datetime objects through unchanged. Parses strings
+    in YYYY-MM-DD format.
+
+    Args:
+        date_value: Date string in YYYY-MM-DD format, or an existing datetime object.
+
+    Returns:
+        datetime: Parsed datetime object
+
+    Raises:
+        ValueError: If date string does not match YYYY-MM-DD format
+    """
+    if isinstance(date_value, datetime):
+        return date_value
+    return datetime.strptime(date_value, '%Y-%m-%d')
 
 
-def _validate_confidence_field(confidence_value):
-    """Helper to validate confidence field."""
+def _validate_confidence_field(confidence_value: float | int) -> float:
+    """
+    Validate a confidence score value.
+
+    Args:
+        confidence_value: Numeric confidence score to validate
+
+    Returns:
+        float: Validated confidence score between 0.0 and 1.0
+
+    Raises:
+        ValueError: If value is not between 0.0 and 1.0
+    """
     confidence = float(confidence_value)
     if not 0.0 <= confidence <= 1.0:
         raise ValueError('confidence must be between 0.0 and 1.0')
     return confidence
 
 
-def build_transaction_update_doc(data):
+def build_transaction_update_doc(data: dict) -> tuple:
     """
     Build MongoDB update document from request data for transaction updates.
 
@@ -88,26 +118,27 @@ def build_transaction_update_doc(data):
 
     update_doc = {}
 
-    # Update date if provided
     if 'date' in data:
         try:
             update_doc['date'] = _validate_date_field(data['date'])
         except ValueError:
-            return None, error_response('VALIDATION_ERROR',
-                                       f'Invalid date format: {data["date"]}. Expected YYYY-MM-DD')
+            return None, error_response(
+                'VALIDATION_ERROR',
+                f'Invalid date format: {data["date"]}. Expected YYYY-MM-DD',
+            )
 
-    # Update amount if provided
     if 'amount' in data:
         try:
             update_doc['amount'] = float(data['amount'])
         except (ValueError, TypeError):
-            return None, error_response('VALIDATION_ERROR', f'Invalid amount: {data["amount"]}')
+            return None, error_response(
+                'VALIDATION_ERROR',
+                f'Invalid amount: {data["amount"]}',
+            )
 
-    # Store category_id for later validation (will be added after validation)
     if 'category_id' in data:
         update_doc['_pending_category_id'] = data['category_id']
 
-    # Update other fields
     if 'description' in data:
         update_doc['description'] = str(data['description']).strip()
 
@@ -121,12 +152,19 @@ def build_transaction_update_doc(data):
         try:
             update_doc['confidence'] = _validate_confidence_field(data['confidence'])
         except (ValueError, TypeError):
-            return None, error_response('VALIDATION_ERROR', f'Invalid confidence: {data["confidence"]}')
+            return None, error_response(
+                'VALIDATION_ERROR',
+                f'Invalid confidence: {data["confidence"]}',
+            )
 
     return update_doc, None
 
 
-def validate_update_request(resource_id, collection, resource_name="resource"):
+def validate_update_request(
+    resource_id: str,
+    collection,
+    resource_name: str = 'resource',
+) -> tuple:
     """
     Validate common update request requirements.
 
@@ -140,22 +178,24 @@ def validate_update_request(resource_id, collection, resource_name="resource"):
     """
     from utils.responses import error_response
 
-    # Validate ObjectId
     try:
         object_id = ObjectId(resource_id)
     except InvalidId:
-        return None, None, error_response('INVALID_ID',
-                                         f'Invalid {resource_name} ID format: {resource_id}')
+        return None, None, error_response(
+            'INVALID_ID',
+            f'Invalid {resource_name} ID format: {resource_id}',
+        )
 
-    # Validate JSON data
     data = request.get_json()
     if not data:
         return None, None, error_response('INVALID_REQUEST', 'Request body must be JSON')
 
-    # Check if resource exists
     document = collection.find_one({'_id': object_id})
     if not document:
-        return None, None, error_response('NOT_FOUND',
-                                         f'{resource_name.capitalize()} not found: {resource_id}', 404)
+        return None, None, error_response(
+            'NOT_FOUND',
+            f'{resource_name.capitalize()} not found: {resource_id}',
+            404,
+        )
 
     return object_id, data, None

@@ -2,7 +2,7 @@
 Transaction model.
 Handles transaction data validation and helper methods.
 """
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 class Transaction:
@@ -22,14 +22,14 @@ class Transaction:
     """
 
     @staticmethod
-    def create(date, description, amount, **optional):
+    def create(date: str | datetime, description: str, amount: float, **optional) -> dict:
         """
         Create a new transaction document.
 
         Args:
-            date: datetime or string - Transaction date
-            description: str - Transaction description
-            amount: float - Transaction amount
+            date: Transaction date as datetime or YYYY-MM-DD string
+            description: Transaction description
+            amount: Transaction amount
             **optional: Optional fields:
                 category_id: int - Category ID (default 0 = Uncategorized)
                 source_file: str - Source CSV filename (default None)
@@ -39,16 +39,18 @@ class Transaction:
 
         Returns:
             dict: Transaction document ready for MongoDB insertion
+
+        Raises:
+            ValueError: If date, amount, category_id, or confidence are invalid
         """
-        # Extract optional parameters with defaults
         category_id = optional.get('category_id', 0)
+        account_id = optional.get('account_id', None)
         source_file = optional.get('source_file', None)
         notes = optional.get('notes', '')
         auto_categorized = optional.get('auto_categorized', False)
         confidence = optional.get('confidence', 0.0)
-        # Convert string date to datetime if needed
+
         if isinstance(date, str):
-            # Try common date formats
             for fmt in ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y']:
                 try:
                     date = datetime.strptime(date, fmt)
@@ -58,17 +60,14 @@ class Transaction:
             else:
                 raise ValueError(f"Could not parse date: {date}")
 
-        # Validate amount
         try:
             amount = float(amount)
         except (ValueError, TypeError) as exc:
             raise ValueError(f"Invalid amount: {amount}") from exc
 
-        # Validate category_id (0 is valid for Uncategorized)
         if not isinstance(category_id, int) or category_id < 0:
             raise ValueError(f"category_id must be a non-negative integer, got {category_id}")
 
-        # Validate confidence score
         if not 0.0 <= confidence <= 1.0:
             raise ValueError(f"Confidence must be between 0.0 and 1.0, got {confidence}")
 
@@ -77,28 +76,34 @@ class Transaction:
             'description': str(description).strip(),
             'amount': amount,
             'category_id': category_id,
+            'account_id': account_id,
             'source_file': source_file,
-            'upload_date': datetime.utcnow(),
+            'upload_date': datetime.now(UTC),
             'notes': str(notes).strip(),
             'auto_categorized': bool(auto_categorized),
-            'confidence': float(confidence)
+            'confidence': float(confidence),
         }
 
     @staticmethod
-    def validate(transaction):
+    def validate(transaction: dict) -> bool:
         """
-        Validate a transaction document.
+        Validate a transaction document has all required fields with correct types.
 
         Args:
-            transaction: dict - Transaction document
+            transaction: Transaction document to validate
 
         Returns:
             bool: True if valid
 
         Raises:
-            ValueError: If validation fails
+            ValueError: If any field is missing or invalid
         """
-        required_fields = ['date', 'description', 'amount', 'category_id']
+        required_fields = [
+            'date',
+            'description',
+            'amount',
+            'category_id',
+        ]
 
         for field in required_fields:
             if field not in transaction:
@@ -120,23 +125,21 @@ class Transaction:
         return True
 
     @staticmethod
-    def to_json(transaction):
+    def to_json(transaction: dict) -> dict:
         """
         Convert transaction to JSON-serializable format.
 
         Args:
-            transaction: dict - Transaction document from MongoDB
+            transaction: Transaction document from MongoDB
 
         Returns:
             dict: JSON-serializable transaction
         """
         result = transaction.copy()
 
-        # Convert ObjectId to string
         if '_id' in result:
             result['_id'] = str(result['_id'])
 
-        # Convert datetime to ISO format string
         if 'date' in result and isinstance(result['date'], datetime):
             result['date'] = result['date'].isoformat()
 
@@ -146,27 +149,23 @@ class Transaction:
         return result
 
     @staticmethod
-    def from_csv_row(row, source_file):
+    def from_csv_row(row: dict, source_file: str) -> dict:
         """
         Create transaction from CSV row.
 
         Args:
-            row: dict - CSV row data
-            source_file: str - Source filename
+            row: CSV row data with 'date', 'description', 'amount' keys
+            source_file: Source filename
 
         Returns:
             dict: Transaction document
-
-        Note:
-            Expects row to have 'date', 'description', 'amount' keys.
-            Actual CSV parsing happens in utils/csv_parser.py
         """
         return Transaction.create(
             date=row['date'],
             description=row['description'],
             amount=row['amount'],
-            category_id=0,  # Uncategorized - will be auto-categorized later
+            category_id=0,
             source_file=source_file,
             auto_categorized=False,
-            confidence=0.0
+            confidence=0.0,
         )

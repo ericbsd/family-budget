@@ -7,6 +7,24 @@ import io
 from datetime import datetime
 from dateutil import parser as date_parser
 
+ALLOWED_UPLOAD_EXTENSIONS = {'csv', 'txt'}
+
+
+def allowed_file(filename: str) -> bool:
+    """
+    Check whether a filename has an allowed upload extension.
+
+    Args:
+        filename: The filename to check.
+
+    Returns:
+        True if the extension is in ALLOWED_UPLOAD_EXTENSIONS, False otherwise.
+    """
+    return (
+        '.' in filename
+        and filename.rsplit('.', 1)[1].lower() in ALLOWED_UPLOAD_EXTENSIONS
+    )
+
 
 class CSVParser:
     """
@@ -28,11 +46,31 @@ class CSVParser:
     ]
 
     # Common column name variations
-    DATE_COLUMNS = ['date', 'transaction date', 'trans date', 'posted date', 'posting date']
-    DESCRIPTION_COLUMNS = ['description', 'merchant', 'memo', 'transaction', 'payee', 'details',
-                           'description 1']  # Canadian banks use "Description 1"
-    AMOUNT_COLUMNS = ['amount', 'debit', 'credit', 'transaction amount', 'value',
-                      'cad$', 'usd$']  # Canadian banks use currency-specific columns
+    DATE_COLUMNS = [
+        'date',
+        'transaction date',
+        'trans date',
+        'posted date',
+        'posting date'
+    ]
+    DESCRIPTION_COLUMNS = [
+        'description',
+        'merchant',
+        'memo',
+        'transaction',
+        'payee',
+        'details',
+        'description 1'
+    ]
+    AMOUNT_COLUMNS = [
+        'amount',
+        'debit',
+        'credit',
+        'transaction amount',
+        'value',
+        'cad$',
+        'usd$'
+    ]
 
     @staticmethod
     def detect_date_format(date_string):

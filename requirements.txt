@@ -1,9 +1,9 @@
 # Core dependencies
 Flask
 Flask-PyMongo
-pymongo
 Flask-CORS
 pandas
+pymongo
 python-dateutil
 fuzzywuzzy
 python-Levenshtein

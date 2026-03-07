@@ -1,11 +1,11 @@
 """
 Database initialization utilities.
-Sets up default categories and creates indexes on first run.
+Sets up default categories and creates indexes on the first run.
 """
-from datetime import datetime
+from datetime import datetime, UTC
 
 
-def init_db(mongo):
+def init_db(mongo) -> dict:
     """
     Initialize the database with default categories and indexes.
     This function is idempotent - safe to run multiple times.
@@ -28,7 +28,7 @@ def init_db(mongo):
             'color': '#9E9E9E',
             'monthly_limit': 0.0,
             'is_system': True,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 1,
@@ -37,7 +37,7 @@ def init_db(mongo):
             'color': '#616161',
             'monthly_limit': 0.0,
             'is_system': True,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 2,
@@ -46,7 +46,7 @@ def init_db(mongo):
             'color': '#546E7A',
             'monthly_limit': 0.0,
             'is_system': True,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Housing ────────────────────────────────────────────────
         {
@@ -55,7 +55,7 @@ def init_db(mongo):
             'description': 'Mortgage/rent, property tax, home insurance, and maintenance',
             'color': '#795548',
             'monthly_limit': 1500.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 4,
@@ -63,7 +63,7 @@ def init_db(mongo):
             'description': 'Electric, water, and heating/natural gas bills',
             'color': '#1E88E5',
             'monthly_limit': 300.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 5,
@@ -71,7 +71,7 @@ def init_db(mongo):
             'description': 'Internet, cable, cell phones, and home phone',
             'color': '#00ACC1',
             'monthly_limit': 200.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Transportation ─────────────────────────────────────────
         {
@@ -80,7 +80,7 @@ def init_db(mongo):
             'description': 'Car payments, auto insurance, and vehicle maintenance',
             'color': '#607D8B',
             'monthly_limit': 400.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 7,
@@ -88,7 +88,7 @@ def init_db(mongo):
             'description': 'Fuel and gas station purchases',
             'color': '#FF9800',
             'monthly_limit': 200.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Food ───────────────────────────────────────────────────
         {
@@ -97,7 +97,7 @@ def init_db(mongo):
             'description': 'Food, household items, and grocery shopping',
             'color': '#4CAF50',
             'monthly_limit': 500.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 9,
@@ -105,7 +105,7 @@ def init_db(mongo):
             'description': 'Dining out, takeout, and food delivery',
             'color': '#EF5350',
             'monthly_limit': 300.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Health & Personal ──────────────────────────────────────
         {
@@ -114,7 +114,7 @@ def init_db(mongo):
             'description': 'Doctor visits, pharmacy, dental, and health/dental insurance premiums',
             'color': '#66BB6A',
             'monthly_limit': 200.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 11,
@@ -122,7 +122,7 @@ def init_db(mongo):
             'description': 'Haircuts, salon, spa, and personal hygiene products',
             'color': '#F06292',
             'monthly_limit': 100.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Family ─────────────────────────────────────────────────
         {
@@ -131,7 +131,7 @@ def init_db(mongo):
             'description': 'Clothes and shoes for the whole family',
             'color': '#EC407A',
             'monthly_limit': 150.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 13,
@@ -139,7 +139,7 @@ def init_db(mongo):
             'description': 'Day care, school fees, tutoring, school supplies, and extracurriculars',
             'color': '#FFA726',
             'monthly_limit': 0.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Lifestyle ──────────────────────────────────────────────
         {
@@ -148,7 +148,7 @@ def init_db(mongo):
             'description': 'Movies, games, hobbies, and leisure activities',
             'color': '#AB47BC',
             'monthly_limit': 150.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 15,
@@ -156,7 +156,7 @@ def init_db(mongo):
             'description': 'Streaming services, software, and recurring digital subscriptions',
             'color': '#7E57C2',
             'monthly_limit': 50.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Financial ──────────────────────────────────────────────
         {
@@ -165,7 +165,7 @@ def init_db(mongo):
             'description': 'Money set aside in savings accounts',
             'color': '#26A69A',
             'monthly_limit': 0.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 17,
@@ -173,7 +173,7 @@ def init_db(mongo):
             'description': 'Stocks, retirement, and investment accounts',
             'color': '#009688',
             'monthly_limit': 1000.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Giving ─────────────────────────────────────────────────
         {
@@ -182,7 +182,7 @@ def init_db(mongo):
             'description': 'Birthday, holiday, and special occasion gifts',
             'color': '#FF7043',
             'monthly_limit': 100.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         {
             'id': 19,
@@ -190,7 +190,7 @@ def init_db(mongo):
             'description': 'Charitable giving and religious contributions',
             'color': '#5C6BC0',
             'monthly_limit': 100.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
         # ── Other ──────────────────────────────────────────────────
         {
@@ -199,7 +199,7 @@ def init_db(mongo):
             'description': 'Bank fees, service charges, and account fees',
             'color': '#78909C',
             'monthly_limit': 0.0,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC)
         },
     ]
 
@@ -208,18 +208,32 @@ def init_db(mongo):
 
     # Insert default categories if they don't exist
     for category in default_categories:
-        existing = db.categories.find_one({'$or': [{'id': category['id']}, {'name': category['name']}]})
-        if not existing:
-            db.categories.insert_one(category)
-            categories_created += 1
-        else:
+        if existing := db.categories.find_one(
+            {'$or': [{'id': category['id']}, {'name': category['name']}]}
+        ):
             # Backfill is_system flag on existing system categories
             if category.get('is_system') and not existing.get('is_system'):
                 db.categories.update_one({'id': category['id']}, {'$set': {'is_system': True}})
             categories_existing += 1
-
-    # Create unique index on category id field
+        else:
+            db.categories.insert_one(category)
+            categories_created += 1
+    # Create a unique index on category id field
     db.categories.create_index('id', unique=True)
+
+    # Seed default account
+    if not db.accounts.find_one({'id': 1}):
+        db.accounts.insert_one({
+            'id': 1,
+            'name': 'Chequing',
+            'type': 'checking',
+            'institution': '',
+            'color': '#42A5F5',
+            'currency': 'CAD',
+            'is_active': True,
+            'created_date': datetime.now(UTC),
+        })
+    db.accounts.create_index('id', unique=True)
 
     # Migrate: tag existing positive uncategorized transactions as Entry
     db.transactions.update_many(
@@ -227,16 +241,16 @@ def init_db(mongo):
         {'$set': {'category_id': 1, 'auto_categorized': True, 'confidence': 1.0}}
     )
 
-    # Create indexes for transactions collection
+    # Create indexes for the transaction collection
     db.transactions.create_index('date')
     db.transactions.create_index('category_id')
     db.transactions.create_index([('date', 1), ('category_id', 1)])
 
-    # Create indexes for categorization_rules collection
+    # Create indexes for the categorization_rules collection
     db.categorization_rules.create_index('pattern')
     db.categorization_rules.create_index('category_id')
 
-    # Create index for uploads collection
+    # Create an index for uploads collection
     db.uploads.create_index('upload_date')
 
     return {
@@ -247,7 +261,7 @@ def init_db(mongo):
     }
 
 
-def reset_db(mongo):
+def reset_db(mongo) -> dict:
     """
     Reset the database by dropping all collections.
     WARNING: This will delete all data!
@@ -264,8 +278,15 @@ def reset_db(mongo):
     db.categories.drop()
     db.categorization_rules.drop()
     db.uploads.drop()
+    db.accounts.drop()
 
     return {
         'status': 'Database reset complete',
-        'collections_dropped': ['transactions', 'categories', 'categorization_rules', 'uploads']
+        'collections_dropped': [
+            'transactions',
+            'categories',
+            'categorization_rules',
+            'uploads',
+            'accounts',
+        ],
     }

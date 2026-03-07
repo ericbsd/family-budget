@@ -3,6 +3,7 @@ Family Budget Application
 Main Flask application entry point.
 """
 import os
+from datetime import datetime
 from flask import Flask
 from flask_cors import CORS
 from pymongo.errors import PyMongoError
@@ -12,7 +13,7 @@ from utils.db_init import init_db
 from utils.db import mongo
 
 
-def create_app(config_name=None):
+def create_app(config_name: str = None) -> Flask:
     """
     Application factory pattern.
     Creates and configures the Flask application.
@@ -47,7 +48,7 @@ def create_app(config_name=None):
 
     @flask_app.template_filter('dateformat')
     def date_filter(value, fmt='%b %d, %Y'):
-        if isinstance(value, __import__('datetime').datetime):
+        if isinstance(value, datetime):
             return value.strftime(fmt)
         return str(value) if value else ''
 
@@ -59,11 +60,13 @@ def create_app(config_name=None):
     # Register blueprints (API routes)
     from api.transactions import transactions_bp
     from api.categories import categories_bp
+    from api.accounts import accounts_bp
     from api.upload import upload_bp
     from api.charts import charts_bp
     from web import web_bp
     flask_app.register_blueprint(transactions_bp, url_prefix='/api')
     flask_app.register_blueprint(categories_bp, url_prefix='/api')
+    flask_app.register_blueprint(accounts_bp, url_prefix='/api')
     flask_app.register_blueprint(upload_bp, url_prefix='/api')
     flask_app.register_blueprint(charts_bp, url_prefix='/api')
     flask_app.register_blueprint(web_bp)

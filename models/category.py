@@ -2,7 +2,9 @@
 Category model.
 Handles category data validation and helper methods.
 """
-from datetime import datetime
+from datetime import datetime, UTC
+
+from utils.responses import doc_to_json
 
 
 class Category:
@@ -19,7 +21,7 @@ class Category:
     """
 
     @staticmethod
-    def get_next_id(mongo):
+    def get_next_id(mongo) -> int:
         """
         Get the next auto-incrementing ID for a new category.
 
@@ -29,36 +31,41 @@ class Category:
         Returns:
             int: Next available category ID
         """
-        # Find the highest existing ID
         highest = mongo.db.categories.find_one(sort=[('id', -1)])
         if highest and 'id' in highest:
             return highest['id'] + 1
-        return 1  # Start at 1 for user-created categories (0 is reserved for Uncategorized)
+        return 1
 
     @staticmethod
-    def create(category_id, name, description, color, monthly_limit=0.0):
+    def create(
+        category_id: int,
+        name: str,
+        description: str,
+        color: str,
+        monthly_limit: float = 0.0,
+    ) -> dict:
         """
         Create a new category document.
 
         Args:
-            category_id: int - Category ID (use get_next_id() to generate)
-            name: str - Category name
-            description: str - Category description
-            color: str - Hex color code
-            monthly_limit: float - Monthly spending limit
+            category_id: Category ID (use get_next_id() to generate)
+            name: Category name
+            description: Category description
+            color: Hex color code
+            monthly_limit: Monthly spending limit
 
         Returns:
             dict: Category document ready for MongoDB insertion
+
+        Raises:
+            ValueError: If category_id, color, or monthly_limit are invalid
         """
-        # Validate ID (0 is valid for Uncategorized)
         if not isinstance(category_id, int) or category_id < 0:
             raise ValueError("category_id must be a non-negative integer")
 
-        # Validate color format
         if not Category.validate_color(color):
             raise ValueError(f"Invalid color format: {color}. Expected hex format like #4CAF50")
 
-        # Validate monthly limit
         try:
             monthly_limit = float(monthly_limit)
             if monthly_limit < 0:
@@ -72,33 +79,27 @@ class Category:
             'description': str(description).strip(),
             'color': str(color).upper(),
             'monthly_limit': monthly_limit,
-            'created_date': datetime.utcnow()
+            'created_date': datetime.now(UTC),
         }
 
     @staticmethod
-    def validate_color(color):
+    def validate_color(color: str) -> bool:
         """
         Validate hex color format.
 
         Args:
-            color: str - Color string to validate
+            color: Color string to validate
 
         Returns:
-            bool: True if valid hex color
+            bool: True if valid hex color (#RRGGBB format)
         """
         if not isinstance(color, str):
             return False
-
         color = color.strip()
-
-        # Check format: #RRGGBB
         if not color.startswith('#'):
             return False
-
         if len(color) != 7:
             return False
-
-        # Check if all characters after # are hex digits
         try:
             int(color[1:], 16)
             return True
@@ -106,20 +107,26 @@ class Category:
             return False
 
     @staticmethod
-    def validate(category):
+    def validate(category: dict) -> bool:
         """
-        Validate a category document.
+        Validate a category document has all required fields with correct types.
 
         Args:
-            category: dict - Category document
+            category: Category document to validate
 
         Returns:
             bool: True if valid
 
         Raises:
-            ValueError: If validation fails
+            ValueError: If any field is missing or invalid
         """
-        required_fields = ['id', 'name', 'description', 'color', 'monthly_limit']
+        required_fields = [
+            'id',
+            'name',
+            'description',
+            'color',
+            'monthly_limit',
+        ]
 
         for field in required_fields:
             if field not in category:
@@ -140,47 +147,39 @@ class Category:
         return True
 
     @staticmethod
-    def to_json(category):
+    def to_json(category: dict) -> dict:
         """
         Convert category to JSON-serializable format.
 
         Args:
-            category: dict - Category document from MongoDB
+            category: Category document from MongoDB
 
         Returns:
             dict: JSON-serializable category
         """
-        result = category.copy()
-
-        # Convert ObjectId to string
-        if '_id' in result:
-            result['_id'] = str(result['_id'])
-
-        # Convert datetime to ISO format string
-        if 'created_date' in result and isinstance(result['created_date'], datetime):
-            result['created_date'] = result['created_date'].isoformat()
-
-        return result
+        return doc_to_json(category)
 
     @staticmethod
-    def update(category_id, **updates):
+    def update(category_id: int, **updates) -> dict:
         """
         Create update document for MongoDB.
+
         Allows updating: name, description, color, monthly_limit.
         The id field cannot be changed.
 
         Args:
-            category_id: int - Category ID
+            category_id: Category ID
             **updates: Keyword arguments for fields to update
 
         Returns:
             dict: MongoDB update document
+
+        Raises:
+            ValueError: If category_id is missing or an invalid field is provided
         """
-        # Validate category_id is provided
         if not category_id:
             raise ValueError("category_id is required for update")
 
-        # Explicitly prevent updating the id field
         if 'id' in updates:
             raise ValueError("Cannot update 'id' field - category IDs are immutable")
 
@@ -191,7 +190,6 @@ class Category:
             if field not in allowed_fields:
                 raise ValueError(f"Cannot update field: {field}")
 
-            # Validate name if updating
             if field == 'name':
                 name = str(value).strip()
                 if not name:
@@ -199,11 +197,9 @@ class Category:
                 update_doc[field] = name
                 continue
 
-            # Validate color if updating
             if field == 'color' and not Category.validate_color(value):
                 raise ValueError(f"Invalid color format: {value}")
 
-            # Validate monthly_limit if updating
             if field == 'monthly_limit':
                 try:
                     value = float(value)
