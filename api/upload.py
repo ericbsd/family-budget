@@ -8,27 +8,13 @@ from flask import Blueprint, request, current_app
 from werkzeug.utils import secure_filename
 from pymongo.errors import PyMongoError
 
-from utils.csv_parser import CSVParser
+from utils.csv_parser import CSVParser, allowed_file
 from utils.categorization import AutoCategorizer
 from utils.db import mongo
 from utils.responses import error_response, success_response
 from utils.transaction_importer import process_transactions
 
 upload_bp = Blueprint('upload', __name__)
-
-
-def allowed_file(filename: str) -> bool:
-    """
-    Check if file extension is allowed.
-
-    Args:
-        filename: Filename to check
-
-    Returns:
-        bool: True if allowed
-    """
-    allowed_extensions = {'csv', 'txt'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 
 def _validate_uploaded_file() -> tuple:

@@ -7,6 +7,24 @@ import io
 from datetime import datetime
 from dateutil import parser as date_parser
 
+ALLOWED_UPLOAD_EXTENSIONS = {'csv', 'txt'}
+
+
+def allowed_file(filename: str) -> bool:
+    """
+    Check whether a filename has an allowed upload extension.
+
+    Args:
+        filename: The filename to check.
+
+    Returns:
+        True if the extension is in ALLOWED_UPLOAD_EXTENSIONS, False otherwise.
+    """
+    return (
+        '.' in filename
+        and filename.rsplit('.', 1)[1].lower() in ALLOWED_UPLOAD_EXTENSIONS
+    )
+
 
 class CSVParser:
     """

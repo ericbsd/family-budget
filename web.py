@@ -10,14 +10,16 @@ from flask import (
     url_for,
     flash,
     current_app,
+    g,
 )
+from pymongo.errors import DuplicateKeyError
 from werkzeug.utils import secure_filename
 
 from models.transaction import Transaction
 from models.category import Category
 from models.account import Account, VALID_TYPES as ACCOUNT_TYPES, TYPE_LABELS as ACCOUNT_TYPE_LABELS
 from utils.db import mongo
-from utils.csv_parser import CSVParser
+from utils.csv_parser import CSVParser, allowed_file
 from utils.categorization import AutoCategorizer
 from utils.aggregations import Aggregations
 from utils.transaction_importer import process_transactions
@@ -161,8 +163,10 @@ def _enrich_transactions(transaction_list: list) -> tuple:
     """
     Enrich each transaction dict with category, account, and formatted date fields.
 
-    Fetches categories and accounts from the database and adds 'category',
-    'account', '_id_str', 'date_str', and 'date_fmt' to each transaction in place.
+    Fetches categories and accounts from the database using field projections,
+    caches the results on the Flask request context via ``g`` to avoid redundant
+    queries within the same request, and adds 'category', 'account', '_id_str',
+    'date_str', and 'date_fmt' to each transaction in place.
 
     Args:
         transaction_list: List of transaction documents from MongoDB.
@@ -170,10 +174,19 @@ def _enrich_transactions(transaction_list: list) -> tuple:
     Returns:
         tuple: (all_categories, all_accounts) lists for use in templates.
     """
-    all_categories = list(mongo.db.categories.find().sort('id', 1))
-    all_accounts = list(mongo.db.accounts.find().sort('id', 1))
-    category_map = {category['id']: category for category in all_categories}
-    account_map = {account['id']: account for account in all_accounts}
+    projection = {'_id': 0, 'id': 1, 'name': 1, 'color': 1}
+
+    if not hasattr(g, 'category_map'):
+        g.category_map = {
+            category['id']: category
+            for category in mongo.db.categories.find({}, projection).sort('id', 1)
+        }
+    if not hasattr(g, 'account_map'):
+        g.account_map = {
+            account['id']: account
+            for account in mongo.db.accounts.find({}, projection).sort('id', 1)
+        }
+
     for transaction in transaction_list:
         transaction['_id_str'] = str(transaction['_id'])
         transaction['date_str'] = (
@@ -184,12 +197,13 @@ def _enrich_transactions(transaction_list: list) -> tuple:
             transaction['date'].strftime('%b %d, %Y')
             if isinstance(transaction['date'], datetime) else ''
         )
-        transaction['category'] = category_map.get(
+        transaction['category'] = g.category_map.get(
             transaction.get('category_id', 0),
             {'name': 'Uncategorized', 'color': '#9E9E9E'},
         )
-        transaction['account'] = account_map.get(transaction.get('account_id'))
-    return all_categories, all_accounts
+        transaction['account'] = g.account_map.get(transaction.get('account_id'))
+
+    return list(g.category_map.values()), list(g.account_map.values())
 
 
 # ── Transactions ──────────────────────────────────────────────────
@@ -305,6 +319,68 @@ def delete_transaction(transaction_id):
     return redirect(request.referrer or url_for('web.transactions'))
 
 
+def _handle_upload_post(file) -> object:
+    """
+    Process a CSV upload POST request.
+
+    Validates the file, account, and CSV content, then imports transactions
+    and records the upload. Flashes a result message and returns a redirect.
+
+    Args:
+        file: The uploaded file object from request.files.
+
+    Returns:
+        A redirect response to the upload page.
+    """
+    if not allowed_file(file.filename):
+        flash('Only CSV/TXT files are allowed.', 'danger')
+        return redirect(url_for('web.upload'))
+    try:
+        selected_account_id = int(request.form.get('account_id', 1))
+        selected_account = mongo.db.accounts.find_one({'id': selected_account_id})
+        if not selected_account:
+            flash('Selected account not found.', 'danger')
+            return redirect(url_for('web.upload'))
+        content = file.read().decode('utf-8')
+        filename = secure_filename(file.filename)
+        validation = CSVParser.validate_csv(content)
+        if not validation['valid']:
+            flash(f'Invalid CSV: {validation["error"]}', 'danger')
+            return redirect(url_for('web.upload'))
+        parse_result = CSVParser.parse_csv(content, filename)
+        if not parse_result['row_count']:
+            flash('No valid transactions found.', 'warning')
+            return redirect(url_for('web.upload'))
+        categorized, uncategorized = process_transactions(
+            parse_result,
+            filename,
+            AutoCategorizer(mongo),
+            account_id=selected_account_id,
+            account_type=selected_account['type'],
+        )[1:]
+        month = (parse_result['transactions'][0]['date'].strftime('%Y-%m') if parse_result['transactions'] else '')
+        mongo.db.uploads.insert_one({
+            'filename': filename,
+            'upload_date': datetime.now(UTC),
+            'row_count': parse_result['row_count'],
+            'month': month,
+            'status': 'processed',
+            'categorized_count': categorized,
+            'uncategorized_count': uncategorized,
+            'errors': parse_result['errors'],
+            'account_id': selected_account_id,
+        })
+        flash(
+            f'Imported {parse_result["row_count"]} transactions '
+            f'({categorized} auto-categorized, {uncategorized} uncategorized).',
+            'success'
+        )
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        current_app.logger.error('Upload error: %s', e)
+        flash(f'Import failed: {e}', 'danger')
+    return redirect(url_for('web.upload'))
+
+
 # ── Upload ────────────────────────────────────────────────────────
 @web_bp.route('/upload', methods=['GET', 'POST'])
 def upload():
@@ -314,52 +390,7 @@ def upload():
         if not file or file.filename == '':
             flash('No file selected.', 'danger')
             return redirect(url_for('web.upload'))
-        if file.filename.rsplit('.', 1)[-1].lower() not in {'csv', 'txt'}:
-            flash('Only CSV/TXT files are allowed.', 'danger')
-            return redirect(url_for('web.upload'))
-        try:
-            selected_account_id = int(request.form.get('account_id', 1))
-            selected_account_type = (
-                (mongo.db.accounts.find_one({'id': selected_account_id}) or {}).get('type')
-            )
-            content = file.read().decode('utf-8')
-            filename = secure_filename(file.filename)
-            validation = CSVParser.validate_csv(content)
-            if not validation['valid']:
-                flash(f'Invalid CSV: {validation["error"]}', 'danger')
-                return redirect(url_for('web.upload'))
-            parse_result = CSVParser.parse_csv(content, filename)
-            if not parse_result['row_count']:
-                flash('No valid transactions found.', 'warning')
-                return redirect(url_for('web.upload'))
-            categorized, uncategorized = process_transactions(
-                parse_result,
-                filename,
-                AutoCategorizer(mongo),
-                account_id=selected_account_id,
-                account_type=selected_account_type,
-            )[1:]
-            month = (parse_result['transactions'][0]['date'].strftime('%Y-%m') if parse_result['transactions'] else '')
-            mongo.db.uploads.insert_one({
-                'filename': filename,
-                'upload_date': datetime.now(UTC),
-                'row_count': parse_result['row_count'],
-                'month': month,
-                'status': 'processed',
-                'categorized_count': categorized,
-                'uncategorized_count': uncategorized,
-                'errors': parse_result['errors'],
-                'account_id': selected_account_id,
-            })
-            flash(
-                f'Imported {parse_result["row_count"]} transactions '
-                f'({categorized} auto-categorized, {uncategorized} uncategorized).',
-                'success'
-            )
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            current_app.logger.error('Upload error: %s', e)
-            flash(f'Import failed: {e}', 'danger')
-        return redirect(url_for('web.upload'))
+        return _handle_upload_post(file)
 
     upload_history = list(mongo.db.uploads.find().sort('upload_date', -1).limit(30))
     for upload_record in upload_history:
@@ -401,6 +432,8 @@ def add_account():
         )
         mongo.db.accounts.insert_one(account)
         flash(f'Account "{account["name"]}" created.', 'success')
+    except DuplicateKeyError:
+        flash('Account creation conflict. Please try again.', 'danger')
     except (ValueError, KeyError) as e:  # pylint: disable=broad-exception-caught
         flash(f'Error: {e}', 'danger')
     return redirect(url_for('web.accounts'))
@@ -438,7 +471,7 @@ def delete_account(account_id):
     if not account:
         flash('Account not found.', 'danger')
         return redirect(url_for('web.accounts'))
-    count = mongo.db.transactions.count_documents({'account_id': account_id})
+    count = Account.transaction_count(account_id, mongo)
     if count:
         flash(f'Cannot delete "{account["name"]}" - used by {count} transaction(s).', 'danger')
         return redirect(url_for('web.accounts'))

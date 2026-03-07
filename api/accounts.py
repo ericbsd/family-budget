@@ -3,7 +3,7 @@ Accounts API Blueprint
 Handles CRUD operations for bank accounts.
 """
 from flask import Blueprint, request, current_app
-from pymongo.errors import PyMongoError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from models.account import Account
 from utils.db import mongo
@@ -86,6 +86,8 @@ def create_account() -> tuple:
             return error_response('VALIDATION_ERROR', str(e))
         mongo.db.accounts.insert_one(account)
         return success_response(data=Account.to_json(account), status_code=201)
+    except DuplicateKeyError:
+        return error_response('CONFLICT', 'Account ID conflict. Please retry.', 409)
     except PyMongoError as e:
         current_app.logger.error('Database error creating account: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to create account', 500)
@@ -138,9 +140,7 @@ def delete_account(account_id: int) -> tuple:
         account = mongo.db.accounts.find_one({'id': account_id})
         if not account:
             return error_response('NOT_FOUND', f'Account not found: {account_id}', 404)
-        if count := mongo.db.transactions.count_documents(
-            {'account_id': account_id}
-        ):
+        if count := Account.transaction_count(account_id, mongo):
             return error_response(
                 'ACCOUNT_IN_USE',
                 f'Cannot delete "{account["name"]}" - used by {count} transaction(s)',

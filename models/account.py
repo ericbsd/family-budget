@@ -99,6 +99,20 @@ class Account:
         }
 
     @staticmethod
+    def transaction_count(account_id: int, mongo) -> int:
+        """
+        Return the number of transactions associated with an account.
+
+        Args:
+            account_id: The account ID to check.
+            mongo: Flask-PyMongo instance.
+
+        Returns:
+            int: Number of transactions referencing this account.
+        """
+        return mongo.db.transactions.count_documents({'account_id': account_id})
+
+    @staticmethod
     def to_json(doc: dict) -> dict:
         """
         Convert account document to JSON-serializable format.

@@ -64,12 +64,15 @@ def validate_category_id(category_id: int, mongo) -> tuple:
     return True, None
 
 
-def _validate_date_field(date_value: str) -> datetime:
+def _validate_date_field(date_value: str | datetime) -> datetime:
     """
-    Parse and validate a date string from request data.
+    Parse and validate a date value from request data.
+
+    Passes existing datetime objects through unchanged. Parses strings
+    in YYYY-MM-DD format.
 
     Args:
-        date_value: Date string in YYYY-MM-DD format
+        date_value: Date string in YYYY-MM-DD format, or an existing datetime object.
 
     Returns:
         datetime: Parsed datetime object
@@ -77,6 +80,8 @@ def _validate_date_field(date_value: str) -> datetime:
     Raises:
         ValueError: If date string does not match YYYY-MM-DD format
     """
+    if isinstance(date_value, datetime):
+        return date_value
     return datetime.strptime(date_value, '%Y-%m-%d')
 
 
