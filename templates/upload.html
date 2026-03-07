@@ -12,6 +12,14 @@
             <div class="card-body">
                 <form method="post" action="/upload" enctype="multipart/form-data">
                     <div class="mb-3">
+                        <label class="form-label">Account <span class="text-danger">*</span></label>
+                        <select class="form-select" name="account_id" required>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">CSV / TXT File <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" name="file" accept=".csv,.txt" required>
                         <div class="form-text">Supports most Canadian bank export formats (TD, RBC, Scotiabank, etc.)</div>

@@ -3,7 +3,7 @@ Auto-Categorization Utility
 Smart categorization system that learns merchant patterns.
 """
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from fuzzywuzzy import fuzz
 
 
@@ -29,16 +29,17 @@ class AutoCategorizer:
 
     def __init__(self, mongo):
         """
-        Initialize auto-categorizer with MongoDB connection.
+        Initialize auto-categorizer with a MongoDB connection.
 
         Args:
             mongo: Flask-PyMongo instance
         """
         self.mongo = mongo
 
-    ENTRY_CATEGORY_ID = 1  # Reserved system category for money coming in
+    ENTRY_CATEGORY_ID = 1   # Money coming in (default)
+    SAVINGS_CATEGORY_ID = 16  # Savings account deposits
 
-    def categorize(self, description, amount=None):
+    def categorize(self, description, amount=None, account_type=None):
         """
         Auto-categorize a transaction based on description and amount.
 
@@ -55,25 +56,20 @@ class AutoCategorizer:
         """
         description_clean = description.strip().upper()
 
-        # Try exact match first
-        result = self._exact_match(description_clean)
-        if result:
+        if result := self._exact_match(description_clean):
             return result
 
-        # Try contains match
-        result = self._contains_match(description_clean)
-        if result:
+        if result := self._contains_match(description_clean):
             return result
 
-        # Try fuzzy match
-        result = self._fuzzy_match(description_clean)
-        if result:
+        if result := self._fuzzy_match(description_clean):
             return result
 
-        # Positive amount with no rule match → Entry
+        # Positive amount with no rule match → Entry or Savings
         if amount is not None and amount > 0:
+            cat_id = self.SAVINGS_CATEGORY_ID if account_type == 'savings' else self.ENTRY_CATEGORY_ID
             return {
-                'category_id': self.ENTRY_CATEGORY_ID,
+                'category_id': cat_id,
                 'confidence': 1.0,
                 'match_type': 'amount'
             }
@@ -87,7 +83,7 @@ class AutoCategorizer:
 
     def _exact_match(self, description):
         """
-        Try exact description match from categorization rules.
+        Try the exact description match from categorization rules.
 
         Args:
             description: Cleaned transaction description
@@ -95,12 +91,9 @@ class AutoCategorizer:
         Returns:
             dict or None: Match result if found
         """
-        rule = self.mongo.db.categorization_rules.find_one({
-            'pattern': description,
-            'match_type': 'exact'
-        })
-
-        if rule:
+        if rule := self.mongo.db.categorization_rules.find_one(
+            {'pattern': description, 'match_type': 'exact'}
+        ):
             # Update rule usage
             self._update_rule_usage(rule['_id'])
 
@@ -194,7 +187,7 @@ class AutoCategorizer:
         self.mongo.db.categorization_rules.update_one(
             {'_id': rule_id},
             {
-                '$set': {'last_used': datetime.utcnow()},
+                '$set': {'last_used': datetime.now(UTC)},
                 '$inc': {'use_count': 1}
             }
         )
@@ -215,13 +208,9 @@ class AutoCategorizer:
         # Extract merchant name (remove numbers, locations, etc.)
         merchant_pattern = self._extract_merchant_pattern(description_clean)
 
-        # Check if rule already exists
-        existing_rule = self.mongo.db.categorization_rules.find_one({
-            'pattern': merchant_pattern,
-            'match_type': 'contains'
-        })
-
-        if existing_rule:
+        if existing_rule := self.mongo.db.categorization_rules.find_one(
+            {'pattern': merchant_pattern, 'match_type': 'contains'}
+        ):
             # Update existing rule's category_id if different
             if existing_rule['category_id'] != category_id:
                 self.mongo.db.categorization_rules.update_one(
@@ -229,7 +218,7 @@ class AutoCategorizer:
                     {
                         '$set': {
                             'category_id': category_id,
-                            'last_used': datetime.utcnow()
+                            'last_used': datetime.now(UTC)
                         },
                         '$inc': {'use_count': 1}
                     }
@@ -242,8 +231,8 @@ class AutoCategorizer:
             'pattern': merchant_pattern,
             'category_id': category_id,
             'match_type': 'contains',
-            'created_date': datetime.utcnow(),
-            'last_used': datetime.utcnow(),
+            'created_date': datetime.now(UTC),
+            'last_used': datetime.now(UTC),
             'use_count': 1
         }
 

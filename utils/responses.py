@@ -2,10 +2,32 @@
 API Response Utilities
 Standardized response helpers to eliminate code duplication.
 """
+from datetime import datetime
+
 from flask import jsonify
 
 
-def error_response(code, message, status_code=400):
+def doc_to_json(doc: dict) -> dict:
+    """
+    Convert a MongoDB document to a JSON-serializable dict.
+
+    Converts ObjectId to string and datetime to ISO format string.
+
+    Args:
+        doc: dict - MongoDB document
+
+    Returns:
+        dict: JSON-serializable copy of the document
+    """
+    result = doc.copy()
+    if '_id' in result:
+        result['_id'] = str(result['_id'])
+    if 'created_date' in result and isinstance(result['created_date'], datetime):
+        result['created_date'] = result['created_date'].isoformat()
+    return result
+
+
+def error_response(code: str, message: str, status_code: int = 400) -> tuple:
     """
     Create standardized error response.
 
@@ -21,17 +43,17 @@ def error_response(code, message, status_code=400):
         'success': False,
         'error': {
             'code': code,
-            'message': message
+            'message': message,
         }
     }), status_code
 
 
-def success_response(data=None, message=None, status_code=200, **kwargs):
+def success_response(data=None, message: str = '', status_code: int = 200, **kwargs) -> tuple:
     """
     Create standardized success response.
 
     Args:
-        data: Response data
+        data: Response data (dict, list, or None)
         message: Optional success message
         status_code: HTTP status code
         **kwargs: Additional fields (count, total, etc.)
@@ -47,7 +69,6 @@ def success_response(data=None, message=None, status_code=200, **kwargs):
     if message:
         response['message'] = message
 
-    # Add any additional fields
     response.update(kwargs)
 
     return jsonify(response), status_code

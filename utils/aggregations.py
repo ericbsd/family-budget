@@ -15,7 +15,7 @@ class Aggregations:
     """
 
     @staticmethod
-    def get_date_range(year, month=None, quarter=None):
+    def get_date_range(year: int, month: int = None, quarter: int = None) -> tuple:
         """
         Get start and end dates for a period.
 
@@ -58,7 +58,7 @@ class Aggregations:
         return start_date, end_date
 
     @staticmethod
-    def aggregate_by_category(mongo, start_date, end_date):
+    def aggregate_by_category(mongo, start_date: datetime, end_date: datetime) -> list:
         """
         Aggregate spending by category for a date range.
 
@@ -123,8 +123,17 @@ class Aggregations:
         return enhanced_results
 
     @staticmethod
-    def _calculate_status_and_percentage(monthly_limit, actual):
-        """Helper to calculate budget status and percentage."""
+    def _calculate_status_and_percentage(monthly_limit: float, actual: float) -> tuple:
+        """
+        Calculate budget status string and percentage used.
+
+        Args:
+            monthly_limit: Monthly spending limit for the category
+            actual: Actual amount spent
+
+        Returns:
+            tuple: (status, percentage) where status is 'over', 'warning', 'ok', or 'no_limit'
+        """
         if monthly_limit > 0:
             percentage = (actual / monthly_limit) * 100
             if percentage >= 100:
@@ -139,7 +148,7 @@ class Aggregations:
         return status, percentage
 
     @staticmethod
-    def calculate_budget_status(mongo, year, month):
+    def calculate_budget_status(mongo, year: int, month: int) -> list:
         """
         Calculate budget vs actual spending for each category.
 
@@ -182,7 +191,7 @@ class Aggregations:
         return budget_status
 
     @staticmethod
-    def get_spending_trend(mongo, year, months=12):
+    def get_spending_trend(mongo, year: int, months: int = 12) -> list:
         """
         Get monthly spending trend over time.
 
@@ -252,7 +261,7 @@ class Aggregations:
         return trend_data
 
     @staticmethod
-    def get_top_merchants(mongo, start_date, end_date, limit=10):
+    def get_top_merchants(mongo, start_date: datetime, end_date: datetime, limit: int = 10) -> list:
         """
         Get top merchants by spending for a date range.
 
@@ -318,7 +327,7 @@ class Aggregations:
         return merchants
 
     @staticmethod
-    def get_summary_stats(mongo, start_date, end_date):
+    def get_summary_stats(mongo, start_date: datetime, end_date: datetime) -> dict:
         """
         Get summary statistics for a date range.
 

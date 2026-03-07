@@ -14,3 +14,7 @@ disable=import-outside-toplevel
 [FORMAT]
 # Maximum line length
 max-line-length=120
+
+[DESIGN]
+max-args=7
+max-positional-arguments=7

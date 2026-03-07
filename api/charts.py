@@ -1,7 +1,9 @@
 """
-Charts API Blueprint
+Chart API Blueprint
 Provides aggregated data for visualizations.
 """
+from datetime import datetime
+
 from flask import Blueprint, request, current_app
 from pymongo.errors import PyMongoError
 
@@ -12,23 +14,26 @@ from utils.responses import error_response, success_response
 charts_bp = Blueprint('charts', __name__)
 
 
-def _parse_query_params():
+def _parse_query_params() -> tuple:
     """
     Parse and validate common query parameters for top_merchants.
 
     Returns:
         tuple: (limit, year, month, error_response) where error is None if valid
     """
-    from datetime import datetime
-
     # Parse and validate limit
     try:
         limit = int(request.args.get('limit', 10))
         if limit < 1 or limit > 100:
-            return None, None, None, error_response('INVALID_PARAMETER',
-                                                    'limit must be between 1 and 100')
+            return None, None, None, error_response(
+                'INVALID_PARAMETER',
+                'limit must be between 1 and 100',
+            )
     except ValueError:
-        return None, None, None, error_response('INVALID_PARAMETER', 'limit must be an integer')
+        return None, None, None, error_response(
+            'INVALID_PARAMETER',
+            'limit must be an integer',
+        )
 
     # Parse and validate year
     year = request.args.get('year')
@@ -36,7 +41,10 @@ def _parse_query_params():
         try:
             year = int(year)
         except ValueError:
-            return None, None, None, error_response('INVALID_PARAMETER', 'year must be an integer')
+            return None, None, None, error_response(
+                'INVALID_PARAMETER',
+                'year must be an integer',
+            )
     else:
         year = datetime.now().year
 
@@ -46,17 +54,21 @@ def _parse_query_params():
         try:
             month = int(month)
             if not 1 <= month <= 12:
-                return None, None, None, error_response('INVALID_MONTH',
-                                                        'Month must be between 1 and 12')
+                return None, None, None, error_response(
+                    'INVALID_MONTH',
+                    'Month must be between 1 and 12',
+                )
         except ValueError:
-            return None, None, None, error_response('INVALID_PARAMETER',
-                                                    'month must be an integer')
+            return None, None, None, error_response(
+                'INVALID_PARAMETER',
+                'month must be an integer',
+            )
 
     return limit, year, month, None
 
 
 @charts_bp.route('/charts/monthly/<int:year>/<int:month>', methods=['GET'])
-def monthly_chart(year, month):
+def monthly_chart(year: int, month: int) -> tuple:
     """
     Get monthly spending breakdown by category.
 
@@ -68,32 +80,28 @@ def monthly_chart(year, month):
         JSON response with category breakdown
     """
     try:
-        # Validate month
         if not 1 <= month <= 12:
             return error_response('INVALID_MONTH', 'Month must be between 1 and 12')
 
-        # Get date range for the month
         start_date, end_date = Aggregations.get_date_range(year, month=month)
-
-        # Get spending data
         data = Aggregations.aggregate_by_category(mongo, start_date, end_date)
 
         return success_response(
             data=data,
             count=len(data),
             year=year,
-            month=month
+            month=month,
         )
 
     except ValueError as e:
         return error_response('VALIDATION_ERROR', str(e))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting monthly chart: {str(e)}")
+        current_app.logger.error('Database error getting monthly chart: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve chart data', 500)
 
 
 @charts_bp.route('/charts/quarterly/<int:year>/<int:quarter>', methods=['GET'])
-def quarterly_chart(year, quarter):
+def quarterly_chart(year: int, quarter: int) -> tuple:
     """
     Get quarterly spending breakdown.
 
@@ -105,32 +113,28 @@ def quarterly_chart(year, quarter):
         JSON response with category breakdown
     """
     try:
-        # Validate quarter
         if not 1 <= quarter <= 4:
             return error_response('INVALID_QUARTER', 'Quarter must be between 1 and 4')
 
-        # Get date range for the quarter
         start_date, end_date = Aggregations.get_date_range(year, quarter=quarter)
-
-        # Get spending data
         data = Aggregations.aggregate_by_category(mongo, start_date, end_date)
 
         return success_response(
             data=data,
             count=len(data),
             year=year,
-            quarter=quarter
+            quarter=quarter,
         )
 
     except ValueError as e:
         return error_response('VALIDATION_ERROR', str(e))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting quarterly chart: {str(e)}")
+        current_app.logger.error('Database error getting quarterly chart: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve chart data', 500)
 
 
 @charts_bp.route('/charts/annual/<int:year>', methods=['GET'])
-def annual_chart(year):
+def annual_chart(year: int) -> tuple:
     """
     Get annual spending breakdown.
 
@@ -141,45 +145,47 @@ def annual_chart(year):
         JSON response with category breakdown
     """
     try:
-        # Get date range for the year
         start_date, end_date = Aggregations.get_date_range(year)
-
-        # Get spending data
         data = Aggregations.aggregate_by_category(mongo, start_date, end_date)
 
         return success_response(
             data=data,
             count=len(data),
-            year=year
+            year=year,
         )
 
     except ValueError as e:
         return error_response('VALIDATION_ERROR', str(e))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting annual chart: {str(e)}")
+        current_app.logger.error('Database error getting annual chart: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve chart data', 500)
 
 
 @charts_bp.route('/charts/periods', methods=['GET'])
-def available_periods():
-    """Return distinct year-month combinations that have transaction data."""
+def available_periods() -> tuple:
+    """
+    Return distinct year-month combinations that have transaction data.
+
+    Returns:
+        JSON response with the list of available periods
+    """
     try:
         pipeline = [
             {'$group': {'_id': {'year': {'$year': '$date'}, 'month': {'$month': '$date'}}}},
-            {'$sort': {'_id.year': -1, '_id.month': -1}}
+            {'$sort': {'_id.year': -1, '_id.month': -1}},
         ]
         results = list(mongo.db.transactions.aggregate(pipeline))
         periods = [{'year': r['_id']['year'], 'month': r['_id']['month']} for r in results]
         return success_response(data=periods, count=len(periods))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting periods: {str(e)}")
+        current_app.logger.error('Database error getting periods: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve periods', 500)
 
 
 @charts_bp.route('/budget/status/<int:year>/<int:month>', methods=['GET'])
-def budget_status(year, month):
+def budget_status(year: int, month: int) -> tuple:
     """
-    Get budget status (spent vs limit) for each category.
+    Get budget status (spent vs. limit) for each category.
 
     Args:
         year: Year (e.g., 2024)
@@ -189,29 +195,27 @@ def budget_status(year, month):
         JSON response with budget status per category
     """
     try:
-        # Validate month
         if not 1 <= month <= 12:
             return error_response('INVALID_MONTH', 'Month must be between 1 and 12')
 
-        # Get budget status data
         data = Aggregations.calculate_budget_status(mongo, year, month)
 
         return success_response(
             data=data,
             count=len(data),
             year=year,
-            month=month
+            month=month,
         )
 
     except ValueError as e:
         return error_response('VALIDATION_ERROR', str(e))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting budget status: {str(e)}")
+        current_app.logger.error('Database error getting budget status: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve budget data', 500)
 
 
 @charts_bp.route('/charts/trend', methods=['GET'])
-def spending_trend():
+def spending_trend() -> tuple:
     """
     Get spending trend over time.
 
@@ -223,38 +227,33 @@ def spending_trend():
         JSON response with trend data
     """
     try:
-        # Get query parameters
-        from datetime import datetime
-
         try:
             year = int(request.args.get('year', datetime.now().year))
             months = int(request.args.get('months', 12))
         except ValueError:
             return error_response('INVALID_PARAMETER', 'year and months must be integers')
 
-        # Validate months
         if months < 1 or months > 36:
             return error_response('INVALID_PARAMETER', 'months must be between 1 and 36')
 
-        # Get trend data
         data = Aggregations.get_spending_trend(mongo, year, months)
 
         return success_response(
             data=data,
             count=len(data),
             year=year,
-            months=months
+            months=months,
         )
 
     except ValueError as e:
         return error_response('VALIDATION_ERROR', str(e))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting spending trend: {str(e)}")
+        current_app.logger.error('Database error getting spending trend: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve trend data', 500)
 
 
 @charts_bp.route('/charts/top-merchants', methods=['GET'])
-def top_merchants():
+def top_merchants() -> tuple:
     """
     Get top merchants by spending.
 
@@ -267,18 +266,15 @@ def top_merchants():
         JSON response with top merchants
     """
     try:
-        # Parse and validate query parameters
         limit, year, month, error = _parse_query_params()
         if error:
             return error
 
-        # Get date range
         if month:
             start_date, end_date = Aggregations.get_date_range(year, month=month)
         else:
             start_date, end_date = Aggregations.get_date_range(year)
 
-        # Get top merchants data
         data = Aggregations.get_top_merchants(mongo, start_date, end_date, limit)
 
         return success_response(
@@ -286,11 +282,11 @@ def top_merchants():
             count=len(data),
             limit=limit,
             year=year,
-            month=month
+            month=month,
         )
 
     except ValueError as e:
         return error_response('VALIDATION_ERROR', str(e))
     except PyMongoError as e:
-        current_app.logger.error(f"Database error getting top merchants: {str(e)}")
+        current_app.logger.error('Database error getting top merchants: %s', e)
         return error_response('DATABASE_ERROR', 'Failed to retrieve merchant data', 500)

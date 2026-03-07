@@ -31,6 +31,15 @@
                 </select>
             </div>
             <div class="col-auto">
+                <label class="form-label small mb-1">Account</label>
+                <select class="form-select form-select-sm" name="account_id" style="min-width:140px">
+                    <option value="">All accounts</option>
+                    {% for a in accounts %}
+                    <option value="{{ a.id }}" {% if account_id == a.id|string %}selected{% endif %}>{{ a.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
                 <label class="form-label small mb-1">Sort</label>
                 <select class="form-select form-select-sm" name="sort">
                     <option value="date" {% if sort == 'date' %}selected{% endif %}>Date</option>
@@ -88,7 +97,14 @@
                               title="Auto-categorized – confidence {{ (t.confidence * 100) | round | int }}%">A</span>
                         {% endif %}
                     </td>
-                    <td class="cell-truncate text-muted small" style="max-width:140px">{{ t.notes or '' }}</td>
+                    <td class="cell-truncate text-muted small" style="max-width:140px">
+                        {% if t.account %}
+                        <span class="badge me-1" style="background-color:{{ t.account.color }}">
+                            <i class="bi bi-bank"></i> {{ t.account.name }}
+                        </span>
+                        {% endif %}
+                        {{ t.notes or '' }}
+                    </td>
                     <td class="text-nowrap">
                         <button class="btn btn-sm btn-outline-secondary py-0 px-1 edit-btn"
                                 data-id="{{ t._id_str }}"
@@ -124,15 +140,15 @@
         <nav>
             <ul class="pagination pagination-sm mb-0">
                 <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('web.transactions', page=page-1, start_date=start_date, end_date=end_date, category_id=category_id, sort=sort, order=order) }}">‹</a>
+                    <a class="page-link" href="{{ url_for('web.transactions', page=page-1, start_date=start_date, end_date=end_date, category_id=category_id, account_id=account_id, sort=sort, order=order) }}">‹</a>
                 </li>
                 {% for p in page_range %}
                 <li class="page-item {% if p == page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('web.transactions', page=p, start_date=start_date, end_date=end_date, category_id=category_id, sort=sort, order=order) }}">{{ p }}</a>
+                    <a class="page-link" href="{{ url_for('web.transactions', page=p, start_date=start_date, end_date=end_date, category_id=category_id, account_id=account_id, sort=sort, order=order) }}">{{ p }}</a>
                 </li>
                 {% endfor %}
                 <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('web.transactions', page=page+1, start_date=start_date, end_date=end_date, category_id=category_id, sort=sort, order=order) }}">›</a>
+                    <a class="page-link" href="{{ url_for('web.transactions', page=page+1, start_date=start_date, end_date=end_date, category_id=category_id, account_id=account_id, sort=sort, order=order) }}">›</a>
                 </li>
             </ul>
         </nav>

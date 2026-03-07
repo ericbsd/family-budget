@@ -28,11 +28,31 @@ class CSVParser:
     ]
 
     # Common column name variations
-    DATE_COLUMNS = ['date', 'transaction date', 'trans date', 'posted date', 'posting date']
-    DESCRIPTION_COLUMNS = ['description', 'merchant', 'memo', 'transaction', 'payee', 'details',
-                           'description 1']  # Canadian banks use "Description 1"
-    AMOUNT_COLUMNS = ['amount', 'debit', 'credit', 'transaction amount', 'value',
-                      'cad$', 'usd$']  # Canadian banks use currency-specific columns
+    DATE_COLUMNS = [
+        'date',
+        'transaction date',
+        'trans date',
+        'posted date',
+        'posting date'
+    ]
+    DESCRIPTION_COLUMNS = [
+        'description',
+        'merchant',
+        'memo',
+        'transaction',
+        'payee',
+        'details',
+        'description 1'
+    ]
+    AMOUNT_COLUMNS = [
+        'amount',
+        'debit',
+        'credit',
+        'transaction amount',
+        'value',
+        'cad$',
+        'usd$'
+    ]
 
     @staticmethod
     def detect_date_format(date_string):
