@@ -2,6 +2,15 @@
 {% block title %}Dashboard – Family Budget{% endblock %}
 
 {% block content %}
+{% if no_data %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h4>
+</div>
+<div class="text-center text-muted py-5">
+    <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+    No transactions yet. <a href="/upload">Upload a CSV</a> to get started.
+</div>
+{% else %}
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h4 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h4>
     <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
@@ -13,7 +22,7 @@
         </select>
         <select class="form-select form-select-sm" name="month" style="width:auto">
             {% for m in months %}
-            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ month_names[m-1] }}</option>
+            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ month_names[m] }}</option>
             {% endfor %}
         </select>
         <button type="submit" class="btn btn-sm btn-primary">
@@ -52,7 +61,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <div class="text-muted small mb-1">Uncategorized</div>
-                <div class="summary-value text-warning">{{ uncat_count }}</div>
+                <div class="summary-value text-warning">{{ uncategorized_count }}</div>
                 <a href="/transactions?category_id=0" class="small">Review →</a>
             </div>
         </div>
@@ -170,9 +179,11 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
+{% if no_data %}{% else %}
 <script>
 (function () {
     function fmt(v) {
@@ -241,4 +252,5 @@
     function onThemeChange() { drawCategoryChart(); drawTrendChart(); }
 })();
 </script>
+{% endif %}
 {% endblock %}

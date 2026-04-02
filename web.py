@@ -1,4 +1,6 @@
 """Web blueprint - server-side rendered pages with Jinja2."""
+
+import contextlib
 import json
 from datetime import datetime, UTC
 from bson import ObjectId
@@ -26,9 +28,21 @@ from utils.transaction_importer import process_transactions
 
 web_bp = Blueprint('web', __name__)
 
-PAGE_SIZE = 50
-MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
-               'July', 'August', 'September', 'October', 'November', 'December']
+PAGE_SIZE: int = 50
+MONTH_NAMES: dict = {
+    1: 'January',
+    2: 'February',
+    3: 'March',
+    4: 'April',
+    5: 'May',
+    6: 'June',
+    7: 'July',
+    8: 'August',
+    9: 'September',
+    10: 'October',
+    11: 'November',
+    12: 'December'
+}
 
 
 def _parse_date(s: str) -> datetime | None:
@@ -51,26 +65,23 @@ def _parse_date(s: str) -> datetime | None:
 
 def _resolve_period(periods: list, year: int, now: datetime) -> tuple:
     """
-    Return (year, month) to display on the dashboard.
+    Return (year, month) for an explicit year selection.
 
-    Picks the most recent month with data for the given year, falling back
-    to the most recent period overall, then to the current month.
+    Picks the most recent month with data for the given year.
+    Falls back to the current month if no data exists for the year.
 
     Args:
-        periods: List of period dicts with 'year' and 'month' keys
-        year: The selected year from the query string
-        now: Current datetime used as fallback
+        periods: List of period dicts with 'year' and 'month' keys.
+        year: The selected year from the query string.
+        now: Current datetime is used as a fallback.
 
     Returns:
         tuple: (year, month) integers
     """
     if request.args.get('month'):
         return year, int(request.args.get('month'))
-    ym = [p['month'] for p in periods if p['year'] == year]
-    if ym:
+    if ym := [p['month'] for p in periods if p['year'] == year]:
         return year, max(ym)
-    if periods:
-        return periods[0]['year'], periods[0]['month']
     return year, now.month
 
 
@@ -94,24 +105,18 @@ def _build_transaction_query(
     """
     query = {}
     date_query = {}
-    date = _parse_date(start_date)
-    if date:
+    if date := _parse_date(start_date):
         date_query['$gte'] = date
-    date = _parse_date(end_date)
-    if date:
+    if date := _parse_date(end_date):
         date_query['$lte'] = date.replace(hour=23, minute=59, second=59)
     if date_query:
         query['date'] = date_query
     if category_id:
-        try:
+        with contextlib.suppress(ValueError):
             query['category_id'] = int(category_id)
-        except ValueError:
-            pass
     if account_id:
-        try:
+        with contextlib.suppress(ValueError):
             query['account_id'] = int(account_id)
-        except ValueError:
-            pass
     return query
 
 
@@ -127,12 +132,17 @@ def dashboard():
     periods = [{'year': p['_id']['year'], 'month': p['_id']['month']}
                for p in mongo.db.transactions.aggregate(pipeline)]
 
-    year = int(request.args.get('year', now.year))
-    year, month = _resolve_period(periods, year, now)
+    if not periods:
+        return render_template('dashboard.html', no_data=True)
 
+    if not request.args.get('year') and not request.args.get('month'):
+        year, month = periods[0]['year'], periods[0]['month']
+    else:
+        year = int(request.args.get('year', periods[0]['year']))
+        year, month = _resolve_period(periods, year, now)
     start_date, end_date = Aggregations.get_date_range(year, month=month)
     stats = Aggregations.get_summary_stats(mongo, start_date, end_date)
-    uncat_count = mongo.db.transactions.count_documents({'category_id': 0})
+    uncategorized_count = mongo.db.transactions.count_documents({'category_id': 0})
     category_data = Aggregations.aggregate_by_category(mongo, start_date, end_date)
     budget_status = Aggregations.calculate_budget_status(mongo, year, month)
     trend_data = Aggregations.get_spending_trend(mongo, year, months=6)
@@ -144,9 +154,9 @@ def dashboard():
         'dashboard.html',
         year=year,
         month=month,
-        month_name=MONTH_NAMES[month - 1],
+        month_name=MONTH_NAMES[month],
         stats=stats,
-        uncat_count=uncat_count,
+        uncategorized_count=uncategorized_count,
         category_data=category_data,
         budget_status=budget_status,
         trend_data=trend_data,
@@ -209,7 +219,7 @@ def _enrich_transactions(transaction_list: list) -> tuple:
 # ── Transactions ──────────────────────────────────────────────────
 @web_bp.route('/transactions')
 def transactions():
-    """Render the transactions list with filtering and pagination."""
+    """Render the transaction list with filtering and pagination."""
     start_date = request.args.get('start_date', '')
     end_date = request.args.get('end_date', '')
     category_id = request.args.get('category_id', '')
@@ -272,10 +282,7 @@ def edit_transaction(transaction_id):
     """Edit an existing transaction and trigger auto-categorization learning."""
     try:
         object_id = ObjectId(transaction_id)
-        transaction = mongo.db.transactions.find_one({'_id': object_id})
-        if not transaction:
-            flash('Transaction not found.', 'danger')
-        else:
+        if transaction := mongo.db.transactions.find_one({'_id': object_id}):
             description = request.form['description'].strip()
             new_category_id = int(request.form.get('category_id', 0))
             mongo.db.transactions.update_one(
@@ -293,8 +300,9 @@ def edit_transaction(transaction_id):
             if new_category_id != 0:
                 categorizer = AutoCategorizer(mongo)
                 categorizer.learn_from_categorization(description, new_category_id)
-                batch_count = categorizer.batch_categorize_similar(description, new_category_id)
-                if batch_count:
+                if batch_count := categorizer.batch_categorize_similar(
+                    description, new_category_id
+                ):
                     flash(
                         f'Updated. {batch_count} similar transaction(s) also categorized.',
                         'success',
@@ -303,6 +311,8 @@ def edit_transaction(transaction_id):
                     flash('Transaction updated.', 'success')
             else:
                 flash('Transaction updated.', 'success')
+        else:
+            flash('Transaction not found.', 'danger')
     except (ValueError, KeyError) as e:  # pylint: disable=broad-exception-caught
         flash(f'Error: {e}', 'danger')
     return redirect(request.referrer or url_for('web.transactions'))
@@ -404,7 +414,7 @@ def upload():
 # ── Accounts ──────────────────────────────────────────────────────
 @web_bp.route('/accounts')
 def accounts():
-    """Render the accounts management page."""
+    """Render the account management page."""
     accounts_list = list(mongo.db.accounts.find().sort('id', 1))
     return render_template(
         'accounts.html',
@@ -441,7 +451,7 @@ def add_account():
 
 @web_bp.route('/accounts/<int:account_id>/edit', methods=['POST'])
 def edit_account(account_id):
-    """Update name, institution, color, and currency for an account."""
+    """Update the name, institution, color, and currency for an account."""
     account = mongo.db.accounts.find_one({'id': account_id})
     if not account:
         flash('Account not found.', 'danger')
@@ -471,8 +481,7 @@ def delete_account(account_id):
     if not account:
         flash('Account not found.', 'danger')
         return redirect(url_for('web.accounts'))
-    count = Account.transaction_count(account_id, mongo)
-    if count:
+    if count := Account.transaction_count(account_id, mongo):
         flash(f'Cannot delete "{account["name"]}" - used by {count} transaction(s).', 'danger')
         return redirect(url_for('web.accounts'))
     mongo.db.accounts.delete_one({'id': account_id})
@@ -555,8 +564,9 @@ def delete_category(category_id):
     if category.get('is_system'):
         flash('System categories cannot be deleted.', 'danger')
         return redirect(url_for('web.categories'))
-    count = mongo.db.transactions.count_documents({'category_id': category_id})
-    if count:
+    if count := mongo.db.transactions.count_documents(
+        {'category_id': category_id}
+    ):
         flash(f'Cannot delete "{category["name"]}" - used by {count} transaction(s).', 'danger')
         return redirect(url_for('web.categories'))
     mongo.db.categories.delete_one({'id': category_id})

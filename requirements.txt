@@ -2,12 +2,13 @@
 Flask
 Flask-PyMongo
 Flask-CORS
+fuzzywuzzy
 pandas
 pymongo
 python-dateutil
-fuzzywuzzy
 python-Levenshtein
 python-dotenv
+werkzeug
 
 # Code Quality
 pylint
