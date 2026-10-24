@@ -6,7 +6,17 @@ from datetime import datetime, timedelta
 from calendar import monthrange
 
 
-EXCLUDED_CATEGORY_IDS = [1]  # Entry — excluded from all spending charts/budgets
+EXCLUDED_CATEGORY_IDS = [
+    1,
+    2,
+    16,
+    17,
+]
+SUMMARY_EXCLUDED_CATEGORY_IDS = [
+    2,
+    16,
+    17,
+]
 
 
 class Aggregations:
@@ -339,6 +349,9 @@ class Aggregations:
         Returns:
             dict: Summary statistics
         """
+        counts_toward_totals = {
+            '$not': [{'$in': ['$category_id', SUMMARY_EXCLUDED_CATEGORY_IDS]}]
+        }
         pipeline = [
             # Filter by date range
             {
@@ -356,7 +369,7 @@ class Aggregations:
                     'total_expenses': {
                         '$sum': {
                             '$cond': [
-                                {'$lt': ['$amount', 0]},
+                                {'$and': [{'$lt': ['$amount', 0]}, counts_toward_totals]},
                                 '$amount',
                                 0
                             ]
@@ -365,7 +378,7 @@ class Aggregations:
                     'total_income': {
                         '$sum': {
                             '$cond': [
-                                {'$gt': ['$amount', 0]},
+                                {'$and': [{'$gt': ['$amount', 0]}, counts_toward_totals]},
                                 '$amount',
                                 0
                             ]

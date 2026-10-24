@@ -4,9 +4,16 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h4 class="mb-0"><i class="bi bi-list-ul me-2"></i>Transactions</h4>
-    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
-        <i class="bi bi-plus-lg me-1"></i>Add
-    </button>
+    <div class="d-flex gap-2">
+        <form method="post" action="/transactions/detect-transfers" class="d-inline">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">
+                <i class="bi bi-arrow-left-right me-1"></i>Detect Transfers
+            </button>
+        </form>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-lg me-1"></i>Add
+        </button>
+    </div>
 </div>
 
 <!-- Filters -->
@@ -115,6 +122,7 @@
                                 data-description="{{ t.description | e }}"
                                 data-amount="{{ t.amount }}"
                                 data-category="{{ t.category_id | default(0) }}"
+                                data-account="{{ t.account_id or '' }}"
                                 data-notes="{{ t.notes | default('') | e }}"
                                 title="Edit">
                             <i class="bi bi-pencil"></i>
@@ -189,6 +197,14 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Account</label>
+                        <select class="form-select" name="account_id">
+                            {% for a in accounts %}
+                            <option value="{{ a.id }}">{{ a.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="mb-0">
                         <label class="form-label">Notes</label>
                         <textarea class="form-control" name="notes" rows="2"></textarea>
@@ -233,6 +249,15 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Account</label>
+                        <select class="form-select" name="account_id" id="editAccount">
+                            <option value="">No account</option>
+                            {% for a in accounts %}
+                            <option value="{{ a.id }}">{{ a.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="mb-0">
                         <label class="form-label">Notes</label>
                         <textarea class="form-control" name="notes" id="editNotes" rows="2"></textarea>
@@ -257,6 +282,7 @@ document.querySelectorAll('.edit-btn').forEach(function (btn) {
         document.getElementById('editDescription').value = this.dataset.description;
         document.getElementById('editAmount').value      = this.dataset.amount;
         document.getElementById('editCategory').value    = this.dataset.category;
+        document.getElementById('editAccount').value     = this.dataset.account;
         document.getElementById('editNotes').value       = this.dataset.notes;
         new bootstrap.Modal(document.getElementById('editModal')).show();
     });

@@ -12,7 +12,7 @@ werkzeug
 
 # Code Quality
 pylint
-vulture
+deadcode
 
 # Testing dependencies
 pytest

@@ -172,7 +172,7 @@ def init_db(mongo) -> dict:
             'name': 'Investment',
             'description': 'Stocks, retirement, and investment accounts',
             'color': '#009688',
-            'monthly_limit': 1000.0,
+            'monthly_limit': 0.0,
             'created_date': datetime.now(UTC)
         },
         # ── Giving ─────────────────────────────────────────────────
