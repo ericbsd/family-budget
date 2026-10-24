@@ -25,6 +25,11 @@ from utils.csv_parser import CSVParser, allowed_file
 from utils.categorization import AutoCategorizer
 from utils.aggregations import Aggregations
 from utils.transaction_importer import process_transactions
+from utils.transfer_detection import (
+    TRANSACTION_CATEGORY_ID,
+    detect_transfers,
+    release_transfer_partner,
+)
 
 web_bp = Blueprint('web', __name__)
 
@@ -268,6 +273,7 @@ def add_transaction():
             description=request.form['description'],
             amount=float(request.form['amount']),
             category_id=int(request.form.get('category_id', 0)),
+            account_id=int(request.form['account_id']) if request.form.get('account_id') else None,
             notes=request.form.get('notes', ''),
         )
         mongo.db.transactions.insert_one(transaction)
@@ -293,10 +299,13 @@ def edit_transaction(transaction_id):
                         'description': description,
                         'amount': float(request.form['amount']),
                         'category_id': new_category_id,
+                        'account_id': int(request.form['account_id']) if request.form.get('account_id') else None,
                         'notes': request.form.get('notes', ''),
                     }
                 }
             )
+            if new_category_id != TRANSACTION_CATEGORY_ID:
+                release_transfer_partner(mongo, transaction)
             if new_category_id != 0:
                 categorizer = AutoCategorizer(mongo)
                 categorizer.learn_from_categorization(description, new_category_id)
@@ -322,10 +331,23 @@ def edit_transaction(transaction_id):
 def delete_transaction(transaction_id):
     """Delete a transaction by its MongoDB ObjectId string."""
     try:
-        mongo.db.transactions.delete_one({'_id': ObjectId(transaction_id)})
+        object_id = ObjectId(transaction_id)
+        if transaction := mongo.db.transactions.find_one({'_id': object_id}):
+            release_transfer_partner(mongo, transaction)
+        mongo.db.transactions.delete_one({'_id': object_id})
         flash('Transaction deleted.', 'success')
     except (ValueError, KeyError) as e:  # pylint: disable=broad-exception-caught
         flash(f'Error: {e}', 'danger')
+    return redirect(request.referrer or url_for('web.transactions'))
+
+
+@web_bp.route('/transactions/detect-transfers', methods=['POST'])
+def detect_transfers_route():
+    """Re-scan all transactions for inter-account transfers on demand."""
+    if pair_count := detect_transfers(mongo):
+        flash(f'Detected and tagged {pair_count} transfer pair(s).', 'success')
+    else:
+        flash('No new transfers detected.', 'info')
     return redirect(request.referrer or url_for('web.transactions'))
 
 
@@ -368,6 +390,7 @@ def _handle_upload_post(file) -> object:
             account_id=selected_account_id,
             account_type=selected_account['type'],
         )[1:]
+        transfer_pairs = detect_transfers(mongo)
         month = (parse_result['transactions'][0]['date'].strftime('%Y-%m') if parse_result['transactions'] else '')
         mongo.db.uploads.insert_one({
             'filename': filename,
@@ -380,11 +403,13 @@ def _handle_upload_post(file) -> object:
             'errors': parse_result['errors'],
             'account_id': selected_account_id,
         })
-        flash(
+        message = (
             f'Imported {parse_result["row_count"]} transactions '
-            f'({categorized} auto-categorized, {uncategorized} uncategorized).',
-            'success'
+            f'({categorized} auto-categorized, {uncategorized} uncategorized).'
         )
+        if transfer_pairs:
+            message += f' {transfer_pairs} transfer pair(s) detected.'
+        flash(message, 'success')
     except Exception as e:  # pylint: disable=broad-exception-caught
         current_app.logger.error('Upload error: %s', e)
         flash(f'Import failed: {e}', 'danger')

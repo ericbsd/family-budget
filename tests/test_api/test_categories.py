@@ -9,14 +9,14 @@ class TestCategoriesAPI:
     """Test category CRUD operations."""
 
     def test_list_categories(self, client):
-        """Test listing all categories (should have 7 defaults)."""
+        """Test listing all categories (should have 21 defaults)."""
         response = client.get('/api/categories')
 
         assert response.status_code == 200
         json_data = response.get_json()
         assert json_data['success'] is True
-        assert json_data['count'] == 7  # 7 default categories
-        assert len(json_data['data']) == 7
+        assert json_data['count'] == 21
+        assert len(json_data['data']) == 21
 
         # Verify default categories exist
         category_names = [cat['name'] for cat in json_data['data']]
@@ -26,13 +26,12 @@ class TestCategoriesAPI:
 
     def test_get_category_by_id(self, client):
         """Test getting a specific category by ID."""
-        # Get Groceries (ID 1)
-        response = client.get('/api/categories/1')
+        response = client.get('/api/categories/8')
 
         assert response.status_code == 200
         json_data = response.get_json()
         assert json_data['success'] is True
-        assert json_data['data']['id'] == 1
+        assert json_data['data']['id'] == 8
         assert json_data['data']['name'] == 'Groceries'
 
     def test_get_category_not_found(self, client):
@@ -54,11 +53,11 @@ class TestCategoriesAPI:
         assert 'created successfully' in json_data['message']
         assert json_data['data']['name'] == sample_category['name']
         assert json_data['data']['color'] == sample_category['color']
-        assert json_data['data']['id'] >= 7  # User categories start at ID 7
+        assert json_data['data']['id'] == 21
 
         # Verify in database
         categories = list(db.categories.find())
-        assert len(categories) == 8  # 7 defaults + 1 new
+        assert len(categories) == 22
 
     def test_create_category_missing_fields(self, client):
         """Test creating category with missing required fields."""
@@ -92,13 +91,12 @@ class TestCategoriesAPI:
 
     def test_update_category(self, client):
         """Test updating a category."""
-        # Update Groceries (ID 1)
         update_data = {
             'name': 'Updated Groceries',
             'monthly_limit': 750.00
         }
 
-        response = client.put('/api/categories/1', json=update_data)
+        response = client.put('/api/categories/8', json=update_data)
 
         assert response.status_code == 200
         json_data = response.get_json()
@@ -117,7 +115,7 @@ class TestCategoriesAPI:
 
     def test_update_category_no_changes(self, client):
         """Test updating category with no valid fields."""
-        response = client.put('/api/categories/1', json={})
+        response = client.put('/api/categories/8', json={})
 
         assert response.status_code == 400
         json_data = response.get_json()
@@ -125,7 +123,7 @@ class TestCategoriesAPI:
         assert json_data['error']['code'] == 'INVALID_REQUEST'  # Empty JSON body
 
     def test_delete_user_category(self, client, db, sample_category):
-        """Test deleting a user-created category (ID >= 7)."""
+        """Test deleting a user-created category."""
         # Create a category first
         create_response = client.post('/api/categories', json=sample_category)
         category_id = create_response.get_json()['data']['id']
@@ -192,5 +190,5 @@ class TestCategoriesAPI:
         id2 = response2.get_json()['data']['id']
 
         # IDs should be sequential
-        assert id1 == 7  # First user category
-        assert id2 == 8  # Second user category
+        assert id1 == 21
+        assert id2 == 22

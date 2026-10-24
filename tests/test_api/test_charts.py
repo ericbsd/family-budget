@@ -13,16 +13,16 @@ class TestChartsAPI:
         """Create sample transactions for chart testing."""
         transactions = [
             # November 2025 - Groceries
-            {'date': '2025-11-05', 'description': 'COSTCO', 'amount': -150.00, 'category_id': 1},
-            {'date': '2025-11-12', 'description': 'WALMART', 'amount': -80.00, 'category_id': 1},
+            {'date': '2025-11-05', 'description': 'COSTCO', 'amount': -150.00, 'category_id': 8},
+            {'date': '2025-11-12', 'description': 'WALMART', 'amount': -80.00, 'category_id': 8},
             # November 2025 - Gas
-            {'date': '2025-11-07', 'description': 'SHELL GAS', 'amount': -45.00, 'category_id': 2},
+            {'date': '2025-11-07', 'description': 'SHELL GAS', 'amount': -45.00, 'category_id': 7},
             # November 2025 - Entertainment
-            {'date': '2025-11-15', 'description': 'NETFLIX', 'amount': -15.99, 'category_id': 4},
+            {'date': '2025-11-15', 'description': 'NETFLIX', 'amount': -15.99, 'category_id': 14},
             # December 2025 - Groceries
-            {'date': '2025-12-03', 'description': 'COSTCO', 'amount': -200.00, 'category_id': 1},
+            {'date': '2025-12-03', 'description': 'COSTCO', 'amount': -200.00, 'category_id': 8},
             # December 2025 - Gas
-            {'date': '2025-12-10', 'description': 'SHELL GAS', 'amount': -50.00, 'category_id': 2},
+            {'date': '2025-12-10', 'description': 'SHELL GAS', 'amount': -50.00, 'category_id': 7},
         ]
 
         for txn in transactions:
@@ -95,7 +95,7 @@ class TestChartsAPI:
         """Test getting budget status (actual vs limit)."""
         # Set monthly limit for Groceries
         db.categories.update_one(
-            {'id': 1},
+            {'id': 8},
             {'$set': {'monthly_limit': 300.00}}
         )
 
@@ -118,7 +118,7 @@ class TestChartsAPI:
         """Test budget status when over budget."""
         # Set monthly limit lower than actual spending
         db.categories.update_one(
-            {'id': 1},
+            {'id': 8},
             {'$set': {'monthly_limit': 200.00}}  # Less than actual 230
         )
 

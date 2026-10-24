@@ -13,36 +13,46 @@ from utils.categorization import AutoCategorizer
 from utils.db import mongo
 from utils.responses import error_response, success_response
 from utils.transaction_importer import process_transactions
+from utils.transfer_detection import detect_transfers
 
 upload_bp = Blueprint('upload', __name__)
 
 
 def _validate_uploaded_file() -> tuple:
     """
-    Validate uploaded file and return file content and filename.
+    Validate the uploaded file and the target account.
 
     Returns:
-        tuple: (file_content, filename, error_response) where error is None if valid
+        tuple: (file_content, filename, account, error_response) where the
+            error is None if the request is valid.
     """
     if 'file' not in request.files:
-        return None, None, error_response('NO_FILE', 'No file provided in request')
+        return None, None, None, error_response('NO_FILE', 'No file provided in request')
 
     file = request.files['file']
 
     if file.filename == '':
-        return None, None, error_response('EMPTY_FILENAME', 'No file selected')
+        return None, None, None, error_response('EMPTY_FILENAME', 'No file selected')
 
     if not allowed_file(file.filename):
-        return None, None, error_response('INVALID_FILE_TYPE', 'Only CSV files are allowed')
+        return None, None, None, error_response('INVALID_FILE_TYPE', 'Only CSV files are allowed')
+
+    account_id = int(request.form.get('account_id', 1))
+    if not (account := mongo.db.accounts.find_one({'id': account_id})):
+        return None, None, None, error_response(
+            'ACCOUNT_NOT_FOUND',
+            f'Account {account_id} not found',
+            404,
+        )
 
     file_content = file.read().decode('utf-8')
     filename = secure_filename(file.filename)
 
     validation = CSVParser.validate_csv(file_content)
     if not validation['valid']:
-        return None, None, error_response('INVALID_CSV', validation['error'])
+        return None, None, None, error_response('INVALID_CSV', validation['error'])
 
-    return file_content, filename, None
+    return file_content, filename, account, None
 
 
 @upload_bp.route('/upload/csv', methods=['POST'])
@@ -51,15 +61,17 @@ def upload_csv() -> tuple:
     Upload and process CSV file.
 
     Request:
-        multipart/form-data with 'file' field
+        multipart/form-data with a 'file' field and an optional 'account_id'
+        field, which defaults to account 1
 
     Returns:
         JSON response with upload results
     """
     try:
-        file_content, filename, error = _validate_uploaded_file()
+        file_content, filename, account, error = _validate_uploaded_file()
         if error:
             return error
+        account_id = account['id']
 
         try:
             parse_result = CSVParser.parse_csv(file_content, filename)
@@ -72,8 +84,13 @@ def upload_csv() -> tuple:
 
         categorizer = AutoCategorizer(mongo)
         row_count, categorized_count, uncategorized_count = process_transactions(
-            parse_result, filename, categorizer
+            parse_result,
+            filename,
+            categorizer,
+            account_id=account_id,
+            account_type=account['type'],
         )
+        transfer_pairs = detect_transfers(mongo)
 
         month = (parse_result['transactions'][0]['date'].strftime('%Y-%m')
                  if parse_result['transactions']
@@ -88,6 +105,7 @@ def upload_csv() -> tuple:
             'categorized_count': categorized_count,
             'uncategorized_count': uncategorized_count,
             'errors': parse_result['errors'],
+            'account_id': account_id,
         })
 
         current_app.logger.info(
@@ -104,6 +122,8 @@ def upload_csv() -> tuple:
                 'total_rows': row_count,
                 'categorized': categorized_count,
                 'uncategorized': uncategorized_count,
+                'transfer_pairs': transfer_pairs,
+                'account_id': account_id,
                 'month': month,
                 'errors': parse_result['errors'],
             },

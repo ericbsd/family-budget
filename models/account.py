@@ -10,6 +10,7 @@ VALID_TYPES = (
     'checking',
     'savings',
     'credit_card',
+    'line_of_credit',
     'loan',
     'mortgage',
     'investment',
@@ -20,6 +21,7 @@ TYPE_LABELS = {
     'checking': 'Chequing',
     'savings': 'Savings',
     'credit_card': 'Credit Card',
+    'line_of_credit': 'Line of Credit',
     'loan': 'Loan',
     'mortgage': 'Mortgage',
     'investment': 'Investment',
@@ -33,7 +35,7 @@ class Account:
     Schema:
         id: int - Auto-incrementing account ID
         name: str - Account name (e.g. "TD Chequing")
-        type: str - Account type (checking/savings/credit_card/loan/mortgage/investment)
+        type: str - Account type (checking/savings/credit_card/line_of_credit/loan/mortgage/investment)
         institution: str - Bank or institution name (optional)
         color: str - Hex color code for UI display
         currency: str - CAD or USD
