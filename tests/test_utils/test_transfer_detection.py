@@ -16,13 +16,20 @@ from utils.transfer_detection import (
 )
 
 ACCOUNTS = [
-    {'id': 2, 'name': 'Savings', 'type': 'savings'},
-    {'id': 3, 'name': 'Mortgage', 'type': 'mortgage'},
-    {'id': 4, 'name': 'Visa', 'type': 'credit_card'},
+    {'id': 2, 'name': 'Savings', 'type': 'savings', 'currency': 'CAD'},
+    {'id': 3, 'name': 'Mortgage', 'type': 'mortgage', 'currency': 'CAD'},
+    {'id': 4, 'name': 'Visa', 'type': 'credit_card', 'currency': 'CAD'},
+    {'id': 5, 'name': 'US Savings', 'type': 'savings', 'currency': 'USD'},
 ]
 
 
-def make_transaction(account_id: int, amount: float, day: int, category_id: int = 0) -> dict:
+def make_transaction(
+    account_id: int,
+    amount: float,
+    day: int,
+    category_id: int = 0,
+    auto_categorized: bool | None = None,
+) -> dict:
     """
     Build a transaction document for September 2026.
 
@@ -31,16 +38,21 @@ def make_transaction(account_id: int, amount: float, day: int, category_id: int 
         amount: The signed transaction amount.
         day: The day of the month.
         category_id: The category ID, Uncategorized by default.
+        auto_categorized: Whether the category was set by the system. It
+            defaults to True for any category other than Uncategorized.
 
     Returns:
         dict: A transaction document ready for insertion.
     """
+    if auto_categorized is None:
+        auto_categorized = category_id != 0
     return {
         '_id': ObjectId(),
         'account_id': account_id,
         'amount': amount,
         'date': datetime(2026, 9, day),
         'category_id': category_id,
+        'auto_categorized': auto_categorized,
         'description': f'TRANSFER {account_id} {amount}',
     }
 
@@ -56,17 +68,29 @@ class TestMatchingHelpers:
                 make_transaction(1, -50.0, 1),
                 make_transaction(2, 50.0, 1),
             ],
-            {1: 'checking', 2: 'savings'},
+            {1: {'type': 'checking'}, 2: {'type': 'savings'}},
         )
 
-        assert list(groups) == [50.0]
-        assert len(groups[50.0]) == 2
+        assert list(groups) == [('CAD', 50.0)]
+        assert len(groups[('CAD', 50.0)]) == 2
+
+    def test_group_by_amount_separates_currencies(self):
+        """Test that the same amount in CAD and USD lands in different groups."""
+        groups = _group_by_amount(
+            [
+                make_transaction(1, -50.0, 1),
+                make_transaction(5, 50.0, 1),
+            ],
+            {1: {'type': 'checking', 'currency': 'CAD'}, 5: {'type': 'savings', 'currency': 'USD'}},
+        )
+
+        assert sorted(groups) == [('CAD', 50.0), ('USD', 50.0)]
 
     def test_group_by_amount_skips_mortgage(self):
         """Test that mortgage transactions are never grouped."""
         groups = _group_by_amount(
             [make_transaction(3, 1200.0, 1)],
-            {3: 'mortgage'},
+            {3: {'type': 'mortgage'}},
         )
 
         assert not groups
@@ -78,10 +102,10 @@ class TestMatchingHelpers:
                 make_transaction(4, -80.0, 1),
                 make_transaction(4, 300.0, 1),
             ],
-            {4: 'credit_card'},
+            {4: {'type': 'credit_card'}},
         )
 
-        assert list(groups) == [300.0]
+        assert list(groups) == [('CAD', 300.0)]
 
     def test_find_partner_requires_opposite_sign(self):
         """Test that two withdrawals of the same amount are not paired."""
@@ -188,6 +212,41 @@ class TestDetectTransfers:
         ])
 
         assert detect_transfers(mongo) == 0
+
+    def test_does_not_override_manual_savings(self, db):
+        """Test that a transaction manually set to Savings is never tagged."""
+        db.transactions.insert_many([
+            make_transaction(1, -50.0, 1),
+            make_transaction(2, 50.0, 1, category_id=16, auto_categorized=False),
+        ])
+
+        assert detect_transfers(mongo) == 0
+
+    def test_ignores_different_currencies(self, db):
+        """Test that a CAD withdrawal never pairs with a USD deposit."""
+        db.transactions.insert_many([
+            make_transaction(1, -50.0, 1),
+            make_transaction(5, 50.0, 1, category_id=16),
+        ])
+
+        assert detect_transfers(mongo) == 0
+
+    def test_api_serializes_and_releases_partner(self, client, db):
+        """Test that the API returns linked legs and unlinks them on delete."""
+        withdrawal = make_transaction(1, -50.0, 1)
+        deposit = make_transaction(2, 50.0, 1, category_id=16)
+        db.transactions.insert_many([withdrawal, deposit])
+        detect_transfers(mongo)
+
+        response = client.get(f"/api/transactions/{deposit['_id']}")
+        assert response.status_code == 200
+        assert response.get_json()['data']['transfer_partner_id'] == str(withdrawal['_id'])
+
+        client.delete(f"/api/transactions/{withdrawal['_id']}")
+
+        released_deposit = db.transactions.find_one({'_id': deposit['_id']})
+        assert 'transfer_partner_id' not in released_deposit
+        assert released_deposit['category_id'] == 16
 
     def test_release_recategorizes_partner(self, db):
         """Test that releasing one leg unlinks and re-categorizes the other."""

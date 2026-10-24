@@ -299,6 +299,7 @@ def edit_transaction(transaction_id):
                         'description': description,
                         'amount': float(request.form['amount']),
                         'category_id': new_category_id,
+                        'auto_categorized': False,
                         'account_id': int(request.form['account_id']) if request.form.get('account_id') else None,
                         'notes': request.form.get('notes', ''),
                     }

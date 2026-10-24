@@ -206,12 +206,14 @@ Key facts:
   transaction candidates by absolute amount, pairs opposite-sign legs across
   different accounts within 3 days, excludes mortgage accounts entirely
   and credit card withdrawals
-- Candidates are transactions still in an auto-assigned/default state
-  (Uncategorized, Entry, Savings, or Investment) so a manually categorized
-  transaction is never overridden
+- Candidates are Uncategorized transactions, or Entry, Savings, or Investment
+  transactions with `auto_categorized: True`. Manual edits (web and API) set
+  `auto_categorized: False`, so a manually categorized transaction is never overridden
+- Both legs must be in the same account currency
 - Each tagged leg stores its partner in `transfer_partner_id`. When one leg is
-  recategorized or deleted, `release_transfer_partner()` unlinks the other leg
-  and re-runs auto-categorization on it
+  recategorized or deleted (web, API single and bulk delete),
+  `release_transfer_partner()` unlinks the other leg and re-runs
+  auto-categorization on it
 - Runs automatically at the end of every CSV upload (web `_handle_upload_post`
   and `POST /api/upload/csv`, which now accepts an optional `account_id`) and on
   demand via a "Detect Transfers" button on the Transactions page

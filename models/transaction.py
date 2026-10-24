@@ -140,6 +140,9 @@ class Transaction:
         if '_id' in result:
             result['_id'] = str(result['_id'])
 
+        if 'transfer_partner_id' in result:
+            result['transfer_partner_id'] = str(result['transfer_partner_id'])
+
         if 'date' in result and isinstance(result['date'], datetime):
             result['date'] = result['date'].isoformat()
 

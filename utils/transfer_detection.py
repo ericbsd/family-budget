@@ -15,9 +15,9 @@ NON_TRANSFER_ACCOUNT_TYPES = {'mortgage'}
 PURCHASE_ACCOUNT_TYPES = {'credit_card'}
 
 
-def _group_by_amount(candidates: list, account_types: dict) -> dict:
+def _group_by_amount(candidates: list, accounts: dict) -> dict:
     """
-    Bucket candidate transactions by their absolute amount.
+    Bucket candidate transactions by their account currency and absolute amount.
 
     Transactions on a non-transfer account type (e.g. mortgage) and
     withdrawals on a purchase account type (e.g. credit card) are left out
@@ -25,21 +25,22 @@ def _group_by_amount(candidates: list, account_types: dict) -> dict:
 
     Args:
         candidates: Transaction documents eligible for transfer matching.
-        account_types: Mapping of account_id to account type string.
+        accounts: Mapping of account_id to account document.
 
     Returns:
-        dict: Absolute amount (rounded to cents) mapped to a list of
-            transactions sharing that amount.
+        dict: A (currency, absolute amount rounded to cents) key mapped to a
+            list of transactions sharing that currency and amount.
     """
     groups: dict = {}
     for transaction in candidates:
-        account_type = account_types.get(transaction['account_id'])
+        account = accounts.get(transaction['account_id'], {})
+        account_type = account.get('type')
         if account_type in NON_TRANSFER_ACCOUNT_TYPES:
             continue
         if account_type in PURCHASE_ACCOUNT_TYPES and transaction['amount'] < 0:
             continue
-        amount_key = round(abs(transaction['amount']), 2)
-        groups.setdefault(amount_key, []).append(transaction)
+        key = (account.get('currency', 'CAD'), round(abs(transaction['amount']), 2))
+        groups.setdefault(key, []).append(transaction)
     return groups
 
 
@@ -77,11 +78,10 @@ def detect_transfers(mongo) -> int:
 
     A pair is treated as a transfer when both legs belong to different
     accounts, carry opposite-sign amounts of the same magnitude, and fall
-    within a few days of each other. Only transactions still in an
-    auto-assigned or uncategorized state are considered, so a transaction
-    the user has manually categorized is never overridden. Mortgage
-    accounts are excluded entirely since mortgage payments always count as
-    spending.
+    within a few days of each other. Only transactions that are uncategorized
+    or still auto-categorized are considered, so a transaction the user has
+    manually categorized is never overridden. Mortgage accounts are excluded
+    entirely since mortgage payments always count as spending.
 
     Args:
         mongo: Flask-PyMongo instance.
@@ -89,17 +89,21 @@ def detect_transfers(mongo) -> int:
     Returns:
         int: Number of transfer pairs tagged in this run.
     """
-    account_types = {
-        account['id']: account['type']
+    accounts = {
+        account['id']: account
         for account in mongo.db.accounts.find()
     }
 
     candidates = list(mongo.db.transactions.find({
         'category_id': {'$in': list(TRANSFER_CANDIDATE_CATEGORY_IDS)},
+        '$or': [
+            {'category_id': 0},
+            {'auto_categorized': True},
+        ],
         'account_id': {'$ne': None},
     }).sort('date', 1))
 
-    groups = _group_by_amount(candidates, account_types)
+    groups = _group_by_amount(candidates, accounts)
 
     matched_ids: set = set()
     updates = []

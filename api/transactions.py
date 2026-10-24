@@ -12,6 +12,7 @@ from pymongo.errors import PyMongoError
 from models.transaction import Transaction
 from utils.db import mongo
 from utils.responses import error_response, success_response
+from utils.transfer_detection import TRANSACTION_CATEGORY_ID, release_transfer_partner
 from utils.validators import (
     validate_json_request,
     validate_category_id,
@@ -258,11 +259,15 @@ def update_transaction(transaction_id: str) -> tuple:
             if not is_valid:
                 return error
             update_doc['category_id'] = category_id
+            update_doc['auto_categorized'] = False
 
         if not update_doc:
             return error_response('NO_UPDATES', 'No valid fields to update')
 
+        previous_transaction = mongo.db.transactions.find_one({'_id': object_id})
         mongo.db.transactions.update_one({'_id': object_id}, {'$set': update_doc})
+        if update_doc.get('category_id', TRANSACTION_CATEGORY_ID) != TRANSACTION_CATEGORY_ID:
+            release_transfer_partner(mongo, previous_transaction)
 
         updated_transaction = mongo.db.transactions.find_one({'_id': object_id})
 
@@ -334,6 +339,7 @@ def delete_transaction(transaction_id: str) -> tuple:
                 404,
             )
 
+        release_transfer_partner(mongo, transaction)
         mongo.db.transactions.delete_one({'_id': object_id})
 
         current_app.logger.info('Deleted transaction: %s', transaction_id)
@@ -374,6 +380,8 @@ def bulk_delete_transactions() -> tuple:
             except InvalidId:
                 return error_response('INVALID_ID', f'Invalid transaction ID format: {tid}')
 
+        for transaction in mongo.db.transactions.find({'_id': {'$in': object_ids}}):
+            release_transfer_partner(mongo, transaction)
         result = mongo.db.transactions.delete_many({'_id': {'$in': object_ids}})
 
         current_app.logger.info('Bulk deleted %s transactions', result.deleted_count)
